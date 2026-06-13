@@ -1,0 +1,148 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============ FUNCIONES DE AYUDA ============
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return getUserData().rol;
+    }
+
+    function isActive() {
+      return getUserData().activo == true;
+    }
+
+    function isNacional() {
+      return isSignedIn() && isActive() && getUserRole() == 'nacional';
+    }
+
+    function isRegional() {
+      return isSignedIn() && isActive() && getUserRole() == 'regional';
+    }
+
+    function isDistrital() {
+      return isSignedIn() && isActive() && getUserRole() == 'distrital';
+    }
+
+    function isViewer() {
+      return isSignedIn() && isActive() && getUserRole() == 'viewer';
+    }
+
+    // Cualquier rol válido y activo puede leer (nacional, regional, distrital, viewer)
+    function canRead() {
+      return isSignedIn() && isActive();
+    }
+
+    // Solo nacional, regional y distrital pueden escribir (viewer es solo lectura)
+    function canWrite() {
+      return isSignedIn() && isActive() && getUserRole() != 'viewer';
+    }
+
+    // Verifica si el documento pertenece a la región del usuario regional
+    function isOwnRegion(region) {
+      return getUserData().region == region;
+    }
+
+    // Verifica si el documento pertenece al distrito del usuario distrital
+    function isOwnDistrito(distrito) {
+      return getUserData().distrito == distrito;
+    }
+
+    // ============ USERS ============
+    // Solo el administrador nacional puede crear/editar/eliminar usuarios.
+    // Cada usuario puede leer su propio documento (para cargar su perfil al iniciar sesión).
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isNacional());
+      allow create, update, delete: if isNacional();
+    }
+
+    // ============ EVENTS ============
+    // Todos los roles activos pueden leer eventos.
+    // Solo el administrador nacional puede crear/editar/eliminar eventos.
+    match /events/{eventId} {
+      allow read: if canRead();
+      allow create, update, delete: if isNacional();
+    }
+
+    // ============ PARTICIPANTS ============
+    match /participants/{participantId} {
+      allow read: if canRead();
+      allow create: if canWrite();
+      allow update: if canWrite() &&
+        (isNacional() ||
+         (isRegional() && isOwnRegion(resource.data.region)) ||
+         (isDistrital() && isOwnDistrito(resource.data.distrito)));
+      allow delete: if isNacional() ||
+        (isRegional() && isOwnRegion(resource.data.region));
+    }
+
+    // ============ PAYMENTS ============
+    match /payments/{paymentId} {
+      allow read: if canRead();
+      allow create, update: if canWrite();
+      allow delete: if isNacional() || isRegional();
+    }
+
+    // ============ LODGING ============
+    match /lodging/{lodgingId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ LODGING ASSIGNMENTS ============
+    match /lodgingAssignments/{assignmentId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ GROUPS ============
+    match /groups/{groupId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ GROUP MEMBERS ============
+    match /groupMembers/{memberId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ TSHIRT REPORTS ============
+    match /tshirtReports/{reportId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ CREDENTIALS ============
+    match /credentials/{credentialId} {
+      allow read: if canRead();
+      allow create, update, delete: if canWrite();
+    }
+
+    // ============ CHECKINS ============
+    match /checkins/{checkinId} {
+      allow read: if canRead();
+      allow create: if canWrite();
+      // No se permite editar ni borrar check-ins (integridad del historial)
+      allow update, delete: if isNacional();
+    }
+
+    // ============ AUDIT LOGS ============
+    // Cualquier usuario activo puede crear logs (de sus propias acciones).
+    // Solo lectura para nacional y regional. Nadie puede editar/borrar logs.
+    match /auditLogs/{logId} {
+      allow read: if isNacional() || isRegional();
+      allow create: if canRead();
+      allow update, delete: if false;
+    }
+  }
+}
