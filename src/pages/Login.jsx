@@ -46,7 +46,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-4 shadow-lg overflow-hidden">
-           <img src="../IMG-20260104-WA0006.jpg" alt="Logo DIN" className="w-full h-full object-cover" />
+           <img src="/IMG-20260104-WA0006.jpg" alt="Logo DIN" className="w-full h-full object-cover" />
         </div>
           <h1 className="text-2xl font-bold text-white">Convención Nacional de Niños</h1>
           <p className="text-primary-200 mt-1 text-sm">Iglesia de Dios — Ministerio Nacional de Niños</p>
