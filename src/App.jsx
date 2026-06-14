@@ -13,6 +13,7 @@ import Grupos from './features/groups/pages/Grupos';
 import Camisetas from './features/tshirts/pages/Camisetas';
 import Credenciales from './features/credentials/pages/Credenciales';
 import CheckIn from './features/checkin/pages/CheckIn';
+import Reportes from './features/reports/pages/Reportes';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -43,7 +44,7 @@ export default function App() {
                 <Route path="/camisetas" element={<Camisetas />} />
                 <Route path="/credenciales" element={<Credenciales />} />
                 <Route path="/checkin" element={<CheckIn />} />
-                <Route path="/reportes" element={<PlaceholderPage titulo="Reportes" />} />
+                <Route path="/reportes" element={<Reportes />} />
               </Route>
             </Route>
             <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
