@@ -42,7 +42,7 @@ export default function App() {
                 <Route path="/grupos" element={<Grupos />} />
                 <Route path="/camisetas" element={<Camisetas />} />
                 <Route path="/credenciales" element={<Credenciales />} />
-                <Route path="/checkin" element={<PlaceholderPage titulo="Check-In" />} />
+                <Route path="/checkin" element={<CheckIn />} />
                 <Route path="/reportes" element={<PlaceholderPage titulo="Reportes" />} />
               </Route>
             </Route>
