@@ -14,18 +14,7 @@ import Camisetas from './features/tshirts/pages/Camisetas';
 import Credenciales from './features/credentials/pages/Credenciales';
 import CheckIn from './features/checkin/pages/CheckIn';
 import Reportes from './features/reports/pages/Reportes';
-
-function PlaceholderPage({ titulo }) {
-  return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-1">{titulo}</h1>
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mt-4 text-center text-gray-400">
-        <p className="font-medium">🚧 Módulo en construcción</p>
-        <p className="text-sm mt-1">Este módulo se desarrollará en un bloque posterior.</p>
-      </div>
-    </div>
-  );
-}
+import Usuarios from './features/users/pages/Usuarios';
 
 export default function App() {
   return (
@@ -50,7 +39,7 @@ export default function App() {
             <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/eventos" element={<Eventos />} />
-                <Route path="/usuarios" element={<PlaceholderPage titulo="Usuarios" />} />
+                <Route path="/usuarios" element={<Usuarios />} />
               </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
