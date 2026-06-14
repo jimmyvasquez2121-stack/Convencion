@@ -45,12 +45,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gold-400 mb-4 shadow-lg">
-            <svg className="w-10 h-10 text-primary-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            </svg>
-          </div>
+          <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-white mb-4 shadow-lg overflow-hidden">
+           <img src="/IMG-20260104-WA0006.jpg" alt="Logo DIN" className="w-full h-full object-cover" />
+        </div>
           <h1 className="text-2xl font-bold text-white">Convención Nacional de Niños</h1>
           <p className="text-primary-200 mt-1 text-sm">Iglesia de Dios — Ministerio Nacional de Niños</p>
         </div>
