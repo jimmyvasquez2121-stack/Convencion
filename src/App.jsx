@@ -6,6 +6,7 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Eventos from './features/events/pages/Eventos';
+import Participantes from './features/participants/pages/Participantes';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -30,7 +31,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/participantes" element={<PlaceholderPage titulo="Participantes" />} />
+                <Route path="/participantes" element={<Participantes />} />
                 <Route path="/pagos" element={<PlaceholderPage titulo="Pagos" />} />
                 <Route path="/hospedaje" element={<PlaceholderPage titulo="Hospedaje" />} />
                 <Route path="/grupos" element={<PlaceholderPage titulo="Grupos de Niños" />} />
