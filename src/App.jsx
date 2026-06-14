@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Eventos from './features/events/pages/Eventos';
 import Participantes from './features/participants/pages/Participantes';
 import Pagos from './features/payments/pages/Pagos';
+import Hospedaje from './features/lodging/pages/Hospedaje';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -28,13 +29,12 @@ export default function App() {
         <EventProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/participantes" element={<Participantes />} />
                 <Route path="/pagos" element={<Pagos />} />
-                <Route path="/hospedaje" element={<PlaceholderPage titulo="Hospedaje" />} />
+                <Route path="/hospedaje" element={<Hospedaje />} />
                 <Route path="/grupos" element={<PlaceholderPage titulo="Grupos de Niños" />} />
                 <Route path="/camisetas" element={<PlaceholderPage titulo="Camisetas" />} />
                 <Route path="/credenciales" element={<PlaceholderPage titulo="Credenciales" />} />
@@ -42,14 +42,12 @@ export default function App() {
                 <Route path="/reportes" element={<PlaceholderPage titulo="Reportes" />} />
               </Route>
             </Route>
-
             <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/eventos" element={<Eventos />} />
                 <Route path="/usuarios" element={<PlaceholderPage titulo="Usuarios" />} />
               </Route>
             </Route>
-
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </EventProvider>
