@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Eventos from './features/events/pages/Eventos';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -42,7 +43,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
               <Route element={<MainLayout />}>
-                <Route path="/eventos" element={<PlaceholderPage titulo="Eventos" />} />
+                <Route path="/eventos" element={<Eventos />} />
                 <Route path="/usuarios" element={<PlaceholderPage titulo="Usuarios" />} />
               </Route>
             </Route>
