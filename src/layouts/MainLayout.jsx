@@ -90,9 +90,9 @@ export default function MainLayout() {
 
       <aside className={`fixed lg:static z-40 inset-y-0 left-0 w-64 bg-primary-900 text-white flex flex-col transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex items-center gap-3 px-5 py-5 border-b border-primary-800">
-          <div className="w-10 h-10 rounded-full bg-gold-400 flex items-center justify-center shrink-0">
-            <Icon name="calendar" />
-          </div>
+          <div className="w-10 h-10 rounded-full overflow-hidden shrink-0">
+           <img src="/IMG-20260104-WA0006.jpg" alt="Logo DIN" className="w-full h-full object-cover" />
+        </div>
           <div className="min-w-0">
             <p className="font-bold text-sm leading-tight">Convención Nacional</p>
             <p className="text-primary-300 text-xs leading-tight">de Niños</p>
