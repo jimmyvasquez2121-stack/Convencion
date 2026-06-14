@@ -9,6 +9,7 @@ import Eventos from './features/events/pages/Eventos';
 import Participantes from './features/participants/pages/Participantes';
 import Pagos from './features/payments/pages/Pagos';
 import Hospedaje from './features/lodging/pages/Hospedaje';
+import Grupos from './features/groups/pages/Grupos';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -35,7 +36,7 @@ export default function App() {
                 <Route path="/participantes" element={<Participantes />} />
                 <Route path="/pagos" element={<Pagos />} />
                 <Route path="/hospedaje" element={<Hospedaje />} />
-                <Route path="/grupos" element={<PlaceholderPage titulo="Grupos de Niños" />} />
+                <Route path="/grupos" element={<Grupos />} />
                 <Route path="/camisetas" element={<PlaceholderPage titulo="Camisetas" />} />
                 <Route path="/credenciales" element={<PlaceholderPage titulo="Credenciales" />} />
                 <Route path="/checkin" element={<PlaceholderPage titulo="Check-In" />} />
