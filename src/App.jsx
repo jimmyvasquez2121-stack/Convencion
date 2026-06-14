@@ -11,6 +11,7 @@ import Pagos from './features/payments/pages/Pagos';
 import Hospedaje from './features/lodging/pages/Hospedaje';
 import Grupos from './features/groups/pages/Grupos';
 import Camisetas from './features/tshirts/pages/Camisetas';
+import Credenciales from './features/credentials/pages/Credenciales';
 
 function PlaceholderPage({ titulo }) {
   return (
@@ -39,7 +40,7 @@ export default function App() {
                 <Route path="/hospedaje" element={<Hospedaje />} />
                 <Route path="/grupos" element={<Grupos />} />
                 <Route path="/camisetas" element={<Camisetas />} />
-                <Route path="/credenciales" element={<PlaceholderPage titulo="Credenciales" />} />
+                <Route path="/credenciales" element={<Credenciales />} />
                 <Route path="/checkin" element={<PlaceholderPage titulo="Check-In" />} />
                 <Route path="/reportes" element={<PlaceholderPage titulo="Reportes" />} />
               </Route>
