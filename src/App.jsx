@@ -4,6 +4,7 @@ import { EventProvider } from './context/EventContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
+import Registro from './pages/Registro';
 import Dashboard from './pages/Dashboard';
 import Eventos from './features/events/pages/Eventos';
 import Participantes from './features/participants/pages/Participantes';
@@ -23,6 +24,8 @@ export default function App() {
         <EventProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/registro" element={<Registro />} />
+
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Dashboard />} />
@@ -36,12 +39,14 @@ export default function App() {
                 <Route path="/reportes" element={<Reportes />} />
               </Route>
             </Route>
+
             <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/eventos" element={<Eventos />} />
                 <Route path="/usuarios" element={<Usuarios />} />
               </Route>
             </Route>
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </EventProvider>
