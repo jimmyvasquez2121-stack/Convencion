@@ -12,6 +12,7 @@ import Hospedaje from './features/lodging/pages/Hospedaje';
 import Grupos from './features/groups/pages/Grupos';
 import Camisetas from './features/tshirts/pages/Camisetas';
 import Credenciales from './features/credentials/pages/Credenciales';
+import CheckIn from './features/checkin/pages/CheckIn';
 
 function PlaceholderPage({ titulo }) {
   return (
