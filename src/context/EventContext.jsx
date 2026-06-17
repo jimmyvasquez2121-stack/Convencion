@@ -24,15 +24,6 @@ export function EventProvider({ children }) {
           const sigueExistiendo = lista.find((e) => e.id === prev.id);
           if (sigueExistiendo) return sigueExistiendo;
         }
-
-        try {
-          const guardadoId = localStorage.getItem('eventoActivoId');
-          if (guardadoId) {
-            const evento = lista.find((e) => e.id === guardadoId);
-            if (evento) return evento;
-          }
-        } catch (e) {}
-
         const abierto = lista.find((e) => e.status === 'Open');
         return abierto || lista[0] || null;
       });
@@ -47,18 +38,19 @@ export function EventProvider({ children }) {
     const evento = eventos.find((e) => e.id === eventoId);
     if (evento) {
       setEventoActivo(evento);
-      try {
-        localStorage.setItem('eventoActivoId', eventoId);
-      } catch (e) {}
+      localStorage.setItem('eventoActivoId', eventoId);
     }
   };
 
-  const value = {
-    eventos,
-    eventoActivo,
-    seleccionarEvento,
-    loading
-  };
+  useEffect(() => {
+    const guardadoId = localStorage.getItem('eventoActivoId');
+    if (guardadoId && eventos.length > 0) {
+      const evento = eventos.find((e) => e.id === guardadoId);
+      if (evento) setEventoActivo(evento);
+    }
+  }, [eventos]);
+
+  const value = { eventos, eventoActivo, seleccionarEvento, loading };
 
   return (
     <EventContext.Provider value={value}>
@@ -69,8 +61,6 @@ export function EventProvider({ children }) {
 
 export function useEvent() {
   const context = useContext(EventContext);
-  if (!context) {
-    throw new Error('useEvent debe usarse dentro de un EventProvider');
-  }
+  if (!context) throw new Error('useEvent debe usarse dentro de un EventProvider');
   return context;
 }
