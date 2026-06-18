@@ -100,7 +100,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-primary-200 text-xs mt-6">
-          © {new Date().getFullYear()} Ministerio Nacional de Niños — Iglesia de Dios
+          © {new Date().getFullYear()} Directiva Infantil Nacional — Iglesia de Dios
         </p>
       </div>
     </div>
