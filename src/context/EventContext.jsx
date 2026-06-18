@@ -4,10 +4,35 @@ import { db } from '../firebase/config';
 
 const EventContext = createContext(null);
 
+// Funciones de almacenamiento con fallback
+const guardarId = (id) => {
+  try { localStorage.setItem('eventoActivoId', id); } catch (e) {}
+  try { sessionStorage.setItem('eventoActivoId', id); } catch (e) {}
+};
+
+const obtenerIdGuardado = () => {
+  try {
+    const id = localStorage.getItem('eventoActivoId');
+    if (id) return id;
+  } catch (e) {}
+  try {
+    const id = sessionStorage.getItem('eventoActivoId');
+    if (id) return id;
+  } catch (e) {}
+  return null;
+};
+
 export function EventProvider({ children }) {
   const [eventos, setEventos] = useState([]);
   const [eventoActivo, setEventoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [eventoActivoId, setEventoActivoId] = useState(null);
+
+  // Cargar el ID guardado al inicio
+  useEffect(() => {
+    const id = obtenerIdGuardado();
+    if (id) setEventoActivoId(id);
+  }, []);
 
   useEffect(() => {
     const q = query(collection(db, 'events'), orderBy('startDate', 'desc'));
@@ -18,37 +43,52 @@ export function EventProvider({ children }) {
         ...doc.data()
       }));
       setEventos(lista);
-
-      setEventoActivo((prev) => {
-        if (prev) {
-          const sigueExistiendo = lista.find((e) => e.id === prev.id);
-          if (sigueExistiendo) return sigueExistiendo;
-        }
-        const abierto = lista.find((e) => e.status === 'Open');
-        return abierto || lista[0] || null;
-      });
-
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
+  // Seleccionar evento activo cuando cambien los eventos o el ID guardado
+  useEffect(() => {
+    if (eventos.length === 0) return;
+
+    // Si ya hay un evento activo y sigue existiendo, mantenerlo
+    if (eventoActivo) {
+      const sigueExistiendo = eventos.find(e => e.id === eventoActivo.id);
+      if (sigueExistiendo) {
+        setEventoActivo(sigueExistiendo);
+        return;
+      }
+    }
+
+    // Intentar restaurar el evento guardado
+    const idGuardado = eventoActivoId || obtenerIdGuardado();
+    if (idGuardado) {
+      const evento = eventos.find(e => e.id === idGuardado);
+      if (evento) {
+        setEventoActivo(evento);
+        return;
+      }
+    }
+
+    // Seleccionar automáticamente: Abierto o el primero
+    const abierto = eventos.find(e => e.status === 'Open');
+    const seleccionado = abierto || eventos[0];
+    if (seleccionado) {
+      setEventoActivo(seleccionado);
+      guardarId(seleccionado.id);
+    }
+  }, [eventos, eventoActivoId]);
+
   const seleccionarEvento = (eventoId) => {
-    const evento = eventos.find((e) => e.id === eventoId);
+    const evento = eventos.find(e => e.id === eventoId);
     if (evento) {
       setEventoActivo(evento);
-      localStorage.setItem('eventoActivoId', eventoId);
+      setEventoActivoId(eventoId);
+      guardarId(eventoId);
     }
   };
-
-  useEffect(() => {
-    const guardadoId = localStorage.getItem('eventoActivoId');
-    if (guardadoId && eventos.length > 0) {
-      const evento = eventos.find((e) => e.id === guardadoId);
-      if (evento) setEventoActivo(evento);
-    }
-  }, [eventos]);
 
   const value = { eventos, eventoActivo, seleccionarEvento, loading };
 
