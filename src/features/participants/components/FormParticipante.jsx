@@ -175,8 +175,8 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-                <input type="date" name="birthDate" value={form.birthDate} onChange={cambiar}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition" />
+                <input type="text" name="birthDate" value={form.birthDate} onChange={cambiar} placeholder="DD/MM/AAAA" maxLength="10"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition" />
               </div>
             </div>
             {form.age !== '' && (
