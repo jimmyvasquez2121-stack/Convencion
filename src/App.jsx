@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import { AuthProvider } from './context/AuthContext';
 import { EventProvider } from './context/EventContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -17,6 +18,10 @@ import CheckIn from './features/checkin/pages/CheckIn';
 import Reportes from './features/reports/pages/Reportes';
 import Usuarios from './features/users/pages/Usuarios';
 
+function RutaInicio() {
+  const { isNacional } = useAuth();
+  return isNacional() ? <Dashboard /> : <Navigate to="/participantes" replace />;
+}
 export default function App() {
   return (
     <BrowserRouter>
@@ -28,7 +33,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<RutaInicio />} />
                 <Route path="/participantes" element={<Participantes />} />
                 <Route path="/pagos" element={<Pagos />} />
                 <Route path="/hospedaje" element={<Hospedaje />} />

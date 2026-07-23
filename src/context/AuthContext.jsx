@@ -76,7 +76,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    // Esperar a que se cargue el perfil del usuario
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return result;
   };
 
   const logout = async () => {
