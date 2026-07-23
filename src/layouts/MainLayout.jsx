@@ -19,16 +19,16 @@ const STATUS_LABELS = {
 };
 
 const MENU_ITEMS = [
-  { to: '/', label: 'Dashboard', icon: 'home' },
+  { to: '/', label: 'Dashboard', icon: 'home', roles: ['nacional'] },
   { to: '/eventos', label: 'Eventos', icon: 'calendar', roles: ['nacional'] },
-  { to: '/participantes', label: 'Participantes', icon: 'users' },
-  { to: '/pagos', label: 'Pagos', icon: 'cash' },
-  { to: '/hospedaje', label: 'Hospedaje', icon: 'building' },
-  { to: '/grupos', label: 'Grupos', icon: 'group' },
-  { to: '/camisetas', label: 'Camisetas', icon: 'tshirt' },
-  { to: '/credenciales', label: 'Credenciales', icon: 'qr' },
-  { to: '/checkin', label: 'Check-In', icon: 'check' },
-  { to: '/reportes', label: 'Reportes', icon: 'report' },
+  { to: '/participantes', label: 'Participantes', icon: 'users', roles: ['nacional', 'distrital'] },
+  { to: '/pagos', label: 'Pagos', icon: 'cash', roles: ['nacional', 'distrital'] },
+  { to: '/hospedaje', label: 'Hospedaje', icon: 'building', roles: ['nacional', 'distrital'] },
+  { to: '/grupos', label: 'Grupos', icon: 'group', roles: ['nacional', 'distrital'] },
+  { to: '/camisetas', label: 'Camisetas', icon: 'tshirt', roles: ['nacional'] },
+  { to: '/credenciales', label: 'Credenciales', icon: 'qr', roles: ['nacional', 'distrital'] },
+  { to: '/checkin', label: 'Check-In', icon: 'check', roles: ['nacional'] },
+  { to: '/reportes', label: 'Reportes', icon: 'report', roles: ['nacional'] },
   { to: '/usuarios', label: 'Usuarios', icon: 'user-cog', roles: ['nacional'] },
 ];
 

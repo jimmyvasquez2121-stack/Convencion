@@ -42,7 +42,7 @@ export default function Participantes() {
   const [participanteSeleccionado, setParticipanteSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit } = useAuth();
+  const { canEdit, isNacional, userData } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) {
@@ -50,17 +50,29 @@ export default function Participantes() {
       setLoading(false);
       return;
     }
-    const q = query(
-      collection(db, 'participants'),
-      where('eventId', '==', eventoActivo.id),
-      orderBy('registrationNumber', 'asc')
-    );
+
+    let q;
+    if (isNacional()) {
+      q = query(
+        collection(db, 'participants'),
+        where('eventId', '==', eventoActivo.id),
+        orderBy('registrationNumber', 'asc')
+      );
+    } else {
+      q = query(
+        collection(db, 'participants'),
+        where('eventId', '==', eventoActivo.id),
+        where('district', '==', userData.distrito),
+        orderBy('registrationNumber', 'asc')
+      );
+    }
+
     const unsub = onSnapshot(q, (snap) => {
       setParticipantes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
     return unsub;
-  }, [eventoActivo]);
+  }, [eventoActivo, userData]);
 
   const participantesFiltrados = participantes.filter(p => {
     const texto = busqueda.toLowerCase();

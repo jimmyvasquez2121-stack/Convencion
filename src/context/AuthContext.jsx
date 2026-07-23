@@ -11,10 +11,18 @@ const AuthContext = createContext(null);
 
 export const ROLES = {
   NACIONAL: 'nacional',
-  REGIONAL: 'regional',
   DISTRITAL: 'distrital',
   VIEWER: 'viewer'
 };
+
+// Módulos que puede ver un distrital
+export const MODULOS_DISTRITAL = [
+  '/participantes',
+  '/pagos',
+  '/hospedaje',
+  '/grupos',
+  '/credenciales',
+];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -27,6 +35,7 @@ export function AuthProvider({ children }) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDocSnap = await getDoc(userDocRef);
+
           if (userDocSnap.exists()) {
             const data = userDocSnap.data();
             setUser(firebaseUser);
@@ -62,6 +71,7 @@ export function AuthProvider({ children }) {
       }
       setLoading(false);
     });
+
     return unsubscribe;
   }, []);
 
@@ -74,25 +84,40 @@ export function AuthProvider({ children }) {
   };
 
   const isNacional = () => userData?.rol === ROLES.NACIONAL;
-  const isRegional = () => userData?.rol === ROLES.REGIONAL;
   const isDistrital = () => userData?.rol === ROLES.DISTRITAL;
   const isViewer = () => userData?.rol === ROLES.VIEWER;
-  const canEdit = () => userData?.rol && userData.rol !== ROLES.VIEWER;
-  const canAccessRegion = (region) => {
+
+  // Nacional puede editar todo
+  // Distrital puede editar solo sus módulos permitidos
+  const canEdit = () => userData?.rol === ROLES.NACIONAL || userData?.rol === ROLES.DISTRITAL;
+
+  // ¿Puede acceder a un módulo específico?
+  const canAccessModulo = (path) => {
     if (isNacional()) return true;
-    if (isRegional() || isDistrital()) return userData.region === region;
+    if (isDistrital()) return MODULOS_DISTRITAL.includes(path);
     return false;
   };
+
+  // ¿Puede ver datos de un distrito específico?
   const canAccessDistrito = (distrito) => {
-    if (isNacional() || isRegional()) return true;
-    if (isDistrital()) return userData.distrito === distrito;
+    if (isNacional()) return true;
+    if (isDistrital()) return userData?.distrito === distrito;
     return false;
   };
 
   const value = {
-    user, userData, loading, login, logout,
-    isNacional, isRegional, isDistrital, isViewer,
-    canEdit, canAccessRegion, canAccessDistrito
+    user,
+    userData,
+    loading,
+    login,
+    logout,
+    isNacional,
+    isDistrital,
+    isViewer,
+    canEdit,
+    canAccessModulo,
+    canAccessDistrito,
+    MODULOS_DISTRITAL
   };
 
   return (
@@ -104,6 +129,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth debe usarse dentro de un AuthProvider');
+  if (!context) {
+    throw new Error('useAuth debe usarse dentro de un AuthProvider');
+  }
   return context;
 }
