@@ -35,13 +35,13 @@ const generarNumeroRegistro = async (eventId) => {
 };
 
 export default function FormParticipante({ participante, evento, onCancelar, onGuardado }) {
-  const { userData } = useAuth();
+  const { userData, isNacional } = useAuth();
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
 
   const [form, setForm] = useState({
     fullName: '', gender: '', birthDate: '', age: '',
-    phone: '', email: '', church: '', district: '', region: '',
+    phone: '', email: '', church: '', district: !isNacional() ? userData?.distrito || '' : '', region: '',
     participantType: 'Niño', tshirtSize: '', foodRestrictions: '',
     medicalConditions: '', emergencyContact: '', guardianName: '', notes: '',
   });
@@ -56,7 +56,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         phone: participante.phone || '',
         email: participante.email || '',
         church: participante.church || '',
-        district: participante.district || '',
+        district: participante.district || (!isNacional() ? userData?.distrito || '' : ''),
         region: participante.region || '',
         participantType: participante.participantType || 'Niño',
         tshirtSize: participante.tshirtSize || '',
@@ -213,8 +213,10 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Distrito <span className="text-red-500">*</span></label>
-                <input type="text" name="district" value={form.district} onChange={cambiar} placeholder="Nombre del distrito"
-                  className={`w-full px-4 py-2.5 rounded-lg border ${errores.district ? 'border-red-400' : 'border-gray-300'} focus:ring-2 focus:ring-primary-500 outline-none transition`} />
+                <input type="text" name="district" value={form.district} onChange={cambiar}
+                 placeholder="Nombre del distrito"
+                 disabled={!isNacional()}
+                 className={`w-full px-4 py-2.5 rounded-lg border ${errores.district ? 'border-red-400' : 'border-gray-300'} focus:ring-2 focus:ring-primary-500 outline-none transition ${!isNacional() ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
                 {errores.district && <p className="text-red-500 text-xs mt-1">{errores.district}</p>}
               </div>
               <div>
