@@ -114,7 +114,7 @@ export default function Hospedaje() {
           <h1 className="text-2xl font-bold text-gray-800">Hospedaje</h1>
           <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name}</p>
         </div>
-        {canEdit() && (
+        {isNacional() && (
           <button onClick={() => { setLugarSeleccionado(null); setVista('form'); }}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
