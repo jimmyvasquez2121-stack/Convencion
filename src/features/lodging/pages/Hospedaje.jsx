@@ -203,7 +203,7 @@ export default function Hospedaje() {
                     className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 transition">
                     Ver asignaciones
                   </button>
-                  {canEdit() && (
+                  {isNacional() && (
                     <>
                       <button onClick={() => { setLugarSeleccionado(lugar); setVista('form'); }}
                         className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition">

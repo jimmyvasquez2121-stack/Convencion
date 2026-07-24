@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
 import { useAuth } from '../../../context/AuthContext';
+import AbonosDistritales from '../components/AbonosDistritales';
 import DetallePago from '../components/DetallePago';
 
 const PAYMENT_COLORS = {
@@ -91,12 +92,31 @@ export default function Pagos() {
     );
   }
 
+  const [tabActiva, setTabActiva] = useState('participantes');
+
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Pagos</h1>
         <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name}</p>
       </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        <button onClick={() => setTabActiva('participantes')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition -mb-px
+            ${tabActiva === 'participantes' ? 'border-primary-800 text-primary-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Pagos de Participantes
+        </button>
+        <button onClick={() => setTabActiva('distritales')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition -mb-px
+            ${tabActiva === 'distritales' ? 'border-primary-800 text-primary-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+          Abonos Distritales
+        </button>
+      </div>
+
+      {tabActiva === 'distritales' ? <AbonosDistritales /> : null}
+      {tabActiva === 'distritales' ? null : <>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -216,6 +236,7 @@ export default function Pagos() {
           </div>
         </div>
       )}
+      </>}
     </div>
   );
 }
