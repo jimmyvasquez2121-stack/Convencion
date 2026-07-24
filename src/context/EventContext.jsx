@@ -1,38 +1,14 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
 const EventContext = createContext(null);
 
-// Funciones de almacenamiento con fallback
-const guardarId = (id) => {
-  try { localStorage.setItem('eventoActivoId', id); } catch (e) {}
-  try { sessionStorage.setItem('eventoActivoId', id); } catch (e) {}
-};
-
-const obtenerIdGuardado = () => {
-  try {
-    const id = localStorage.getItem('eventoActivoId');
-    if (id) return id;
-  } catch (e) {}
-  try {
-    const id = sessionStorage.getItem('eventoActivoId');
-    if (id) return id;
-  } catch (e) {}
-  return null;
-};
-
 export function EventProvider({ children }) {
   const [eventos, setEventos] = useState([]);
   const [eventoActivo, setEventoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [eventoActivoId, setEventoActivoId] = useState(null);
-
-  // Cargar el ID guardado al inicio
-  useEffect(() => {
-    const id = obtenerIdGuardado();
-    if (id) setEventoActivoId(id);
-  }, []);
+  const inicializado = useRef(false);
 
   useEffect(() => {
     const q = query(collection(db, 'events'), orderBy('startDate', 'desc'));
@@ -43,54 +19,65 @@ export function EventProvider({ children }) {
         ...doc.data()
       }));
       setEventos(lista);
+
+      if (!inicializado.current && lista.length > 0) {
+        inicializado.current = true;
+
+        // Intentar restaurar desde localStorage
+        let restaurado = false;
+        try {
+          const guardadoId = localStorage.getItem('eventoActivoId');
+          if (guardadoId) {
+            const evento = lista.find((e) => e.id === guardadoId);
+            if (evento) {
+              setEventoActivo(evento);
+              restaurado = true;
+            }
+          }
+        } catch (e) {}
+
+        // Si no se restauró, seleccionar automáticamente
+        if (!restaurado) {
+          const abierto = lista.find((e) => e.status === 'Open');
+          const seleccionado = abierto || lista[0];
+          if (seleccionado) {
+            setEventoActivo(seleccionado);
+            try {
+              localStorage.setItem('eventoActivoId', seleccionado.id);
+            } catch (e) {}
+          }
+        }
+      } else if (inicializado.current) {
+        // Actualizar el evento activo si cambió en Firestore
+        setEventoActivo(prev => {
+          if (!prev) return prev;
+          const actualizado = lista.find(e => e.id === prev.id);
+          return actualizado || prev;
+        });
+      }
+
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
 
-  // Seleccionar evento activo cuando cambien los eventos o el ID guardado
-  useEffect(() => {
-    if (eventos.length === 0) return;
-
-    // Si ya hay un evento activo y sigue existiendo, mantenerlo
-    if (eventoActivo) {
-      const sigueExistiendo = eventos.find(e => e.id === eventoActivo.id);
-      if (sigueExistiendo) {
-        setEventoActivo(sigueExistiendo);
-        return;
-      }
-    }
-
-    // Intentar restaurar el evento guardado
-    const idGuardado = eventoActivoId || obtenerIdGuardado();
-    if (idGuardado) {
-      const evento = eventos.find(e => e.id === idGuardado);
-      if (evento) {
-        setEventoActivo(evento);
-        return;
-      }
-    }
-
-    // Seleccionar automáticamente: Abierto o el primero
-    const abierto = eventos.find(e => e.status === 'Open');
-    const seleccionado = abierto || eventos[0];
-    if (seleccionado) {
-      setEventoActivo(seleccionado);
-      guardarId(seleccionado.id);
-    }
-  }, [eventos, eventoActivoId]);
-
   const seleccionarEvento = (eventoId) => {
-    const evento = eventos.find(e => e.id === eventoId);
+    const evento = eventos.find((e) => e.id === eventoId);
     if (evento) {
       setEventoActivo(evento);
-      setEventoActivoId(eventoId);
-      guardarId(eventoId);
+      try {
+        localStorage.setItem('eventoActivoId', eventoId);
+      } catch (e) {}
     }
   };
 
-  const value = { eventos, eventoActivo, seleccionarEvento, loading };
+  const value = {
+    eventos,
+    eventoActivo,
+    seleccionarEvento,
+    loading
+  };
 
   return (
     <EventContext.Provider value={value}>
