@@ -30,7 +30,7 @@ export default function Grupos() {
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit } = useAuth();
+  const { canEdit,isNacional } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) { setGrupos([]); setLoading(false); return; }
@@ -118,7 +118,7 @@ export default function Grupos() {
           <h1 className="text-2xl font-bold text-gray-800">Grupos de Niños</h1>
           <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name} — {grupos.length} grupos, {totalMiembros} miembros</p>
         </div>
-        {canEdit() && (
+        {isNacional() && (
           <button onClick={() => { setGrupoSeleccionado(null); setVista('form'); }}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,7 +181,7 @@ export default function Grupos() {
                       className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 transition">
                       Ver miembros
                     </button>
-                    {canEdit() && (
+                    {isNacional() && (
                       <>
                         <button onClick={() => { setGrupoSeleccionado(grupo); setVista('form'); }}
                           className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition">

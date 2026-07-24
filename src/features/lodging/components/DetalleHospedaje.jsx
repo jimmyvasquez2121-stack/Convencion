@@ -15,7 +15,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
   const [showBuscar, setShowBuscar] = useState(false);
   const [asignando, setAsignando] = useState(false);
   const [ocupados, setOcupados] = useState(lugar.occupiedSpaces || 0);
-  const { userData, canEdit } = useAuth();
+  const { userData, canEdit, isNacional } = useAuth();
 
   const disponibles = (lugar.capacity || 0) - ocupados;
 
@@ -110,7 +110,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
           <h1 className="text-2xl font-bold text-gray-800">{lugar.name}</h1>
           <p className="text-gray-500 text-sm">{lugar.type} — Capacidad: {lugar.capacity}</p>
         </div>
-        {canEdit() && (
+        {isNacional() && (
           <button onClick={onEditar}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +136,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
         </div>
       </div>
 
-      {canEdit() && disponibles > 0 && (
+      {isNacional() && disponibles > 0 && (
         <div className="mb-4">
           <button onClick={() => setShowBuscar(!showBuscar)}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
@@ -206,8 +206,8 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
                   <p className="font-medium text-gray-800 text-sm">{a.participantName}</p>
                   <p className="text-xs text-gray-400">Registro #{a.registrationNumber}</p>
                 </div>
-                {canEdit() && (
-                  <button onClick={() => removerAsignacion(a)} className="text-red-400 hover:text-red-600 transition p-1">
+                {isNacional() && (
+                 <button onClick={() => removerAsignacion(a)} className="text-red-400 hover:text-red-600 transition p-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>

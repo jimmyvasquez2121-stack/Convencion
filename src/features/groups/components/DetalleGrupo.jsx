@@ -15,7 +15,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
   const [showBuscar, setShowBuscar] = useState(false);
   const [asignando, setAsignando] = useState(false);
   const [memberCount, setMemberCount] = useState(grupo.memberCount || 0);
-  const { userData, canEdit } = useAuth();
+  const { userData, canEdit,isNacional } = useAuth();
 
   const color = colores.find(c => c.name === grupo.color) || colores[0];
 
@@ -135,7 +135,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
             </svg>
             Imprimir
           </button>
-          {canEdit() && (
+          {isNacional() && (
             <button onClick={onEditar}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +157,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
         </div>
       </div>
 
-      {canEdit() && (
+      {isNacional() && (
         <div className="mb-4">
           <button onClick={() => setShowBuscar(!showBuscar)}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
@@ -226,7 +226,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
                     <p className="text-xs text-gray-400">#{m.registrationNumber} — {m.participantType}</p>
                   </div>
                 </div>
-                {canEdit() && (
+                {isNacional() && (
                   <button onClick={() => removerMiembro(m)} className="text-red-400 hover:text-red-600 transition p-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

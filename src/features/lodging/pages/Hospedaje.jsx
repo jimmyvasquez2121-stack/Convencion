@@ -25,7 +25,7 @@ export default function Hospedaje() {
   const [lugarSeleccionado, setLugarSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit } = useAuth();
+  const { canEdit, isNacional } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) { setLugares([]); setLoading(false); return; }
