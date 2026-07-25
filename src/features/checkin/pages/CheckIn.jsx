@@ -7,6 +7,7 @@ import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
 import { useAuth } from '../../../context/AuthContext';
 import Swal from 'sweetalert2';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const PAYMENT_LABELS = { pending: 'Pendiente', partial: 'Parcial', paid: 'Pagado' };
 const PAYMENT_COLORS = { pending: 'text-red-600', partial: 'text-yellow-600', paid: 'text-green-600' };
@@ -20,6 +21,7 @@ export default function CheckIn() {
   const [participanteDetalle, setParticipanteDetalle] = useState(null);
   const [procesando, setProcesando] = useState(false);
   const [qrInput, setQrInput] = useState('');
+  const [mostrarCamara, setMostrarCamara] = useState(false);
   const qrInputRef = useRef(null);
 
   const { eventoActivo } = useEvent();
@@ -62,6 +64,29 @@ export default function CheckIn() {
     }, 400);
     return () => clearTimeout(timeout);
   }, [busqueda, eventoActivo]);
+  
+  useEffect(() => {
+  if (!mostrarCamara) return;
+
+  const scanner = new Html5QrcodeScanner('qr-reader', {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+    rememberLastUsedCamera: true,
+  }, false);
+
+  scanner.render(
+    (decodedText) => {
+      procesarQR(decodedText);
+      scanner.clear();
+      setMostrarCamara(false);
+    },
+    (error) => {}
+  );
+
+  return () => {
+    scanner.clear().catch(() => {});
+  };
+}, [mostrarCamara]);
 
   const procesarCheckin = async (participante) => {
     if (participante.checkedIn) {
@@ -171,19 +196,32 @@ export default function CheckIn() {
               Escanear QR
             </h2>
             <p className="text-xs text-gray-400 mb-3">Usa un lector QR externo o la cámara. El resultado se pegará aquí automáticamente.</p>
-            <form onSubmit={handleQrSubmit} className="flex gap-2">
-              <input
-                ref={qrInputRef}
-                type="text" value={qrInput} onChange={e => setQrInput(e.target.value)}
-                placeholder="Escanea o pega el código QR aquí..."
-                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition text-sm"
-                autoComplete="off"
-              />
-              <button type="submit" disabled={!qrInput.trim() || procesando}
-                className="bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition disabled:opacity-50">
-                ✓
-              </button>
-            </form>
+           <form onSubmit={handleQrSubmit} className="flex gap-2 mb-3">
+  <input
+    ref={qrInputRef}
+    type="text" value={qrInput} onChange={e => setQrInput(e.target.value)}
+    placeholder="Escanea o pega el código QR aquí..."
+    className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition text-sm"
+    autoComplete="off"
+  />
+  <button type="submit" disabled={!qrInput.trim() || procesando}
+    className="bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition disabled:opacity-50">
+    ✓
+  </button>
+</form>
+
+<button
+  onClick={() => setMostrarCamara(!mostrarCamara)}
+  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-primary-300 text-primary-700 hover:bg-primary-50 transition text-sm font-medium"
+>
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+  {mostrarCamara ? 'Cerrar cámara' : 'Abrir cámara para escanear'}
+</button>
+
+{mostrarCamara && <div id="qr-reader" className="mt-3 rounded-lg overflow-hidden" />}
           </div>
 
           {/* Búsqueda manual */}
