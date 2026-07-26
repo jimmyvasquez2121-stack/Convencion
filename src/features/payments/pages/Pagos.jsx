@@ -23,6 +23,7 @@ export default function Pagos() {
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [participanteSeleccionado, setParticipanteSeleccionado] = useState(null);
+  const [tabActiva, setTabActiva] = useState('participantes');
 
   const { eventoActivo } = useEvent();
   const { canEdit, isNacional, userData } = useAuth();
@@ -92,7 +93,7 @@ export default function Pagos() {
     );
   }
 
-  const [tabActiva, setTabActiva] = useState('participantes');
+
 
   return (
     <div>
