@@ -127,6 +127,8 @@ export default function Participantes() {
         onGuardado={(participanteGuardado) => {
   if (participanteGuardado?.agregarAcompanante) {
     setParticipanteSeleccionado({
+      id: null,
+      esAcompanante: true,
       grupoFamiliarId: participanteGuardado.grupoFamiliarId,
       church: participanteGuardado.church,
       district: participanteGuardado.district,

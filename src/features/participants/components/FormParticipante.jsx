@@ -118,7 +118,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         amountPaid: participante?.amountPaid || 0,
         grupoFamiliarId: grupoId,
       };
-      if (participante) {
+      if (participante && !participante.esAcompanante) {
         await updateDoc(doc(db, 'participants', participante.id), {
           ...datos, updatedAt: serverTimestamp(), updatedBy: userData.uid
         });
