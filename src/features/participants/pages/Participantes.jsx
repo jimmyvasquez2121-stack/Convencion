@@ -124,7 +124,20 @@ export default function Participantes() {
         evento={eventoActivo}
         totalParticipantes={participantes.length}
         onCancelar={() => { setVista('lista'); setParticipanteSeleccionado(null); }}
-        onGuardado={() => { setVista('lista'); setParticipanteSeleccionado(null); }}
+        onGuardado={(participanteGuardado) => {
+  if (participanteGuardado?.agregarAcompanante) {
+    setParticipanteSeleccionado({
+      grupoFamiliarId: participanteGuardado.grupoFamiliarId,
+      church: participanteGuardado.church,
+      district: participanteGuardado.district,
+      region: participanteGuardado.region,
+    });
+    setVista('form');
+  } else {
+    setVista('lista');
+    setParticipanteSeleccionado(null);
+  }
+}}
       />
     );
   }

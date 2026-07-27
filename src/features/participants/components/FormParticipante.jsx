@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 
 const TALLAS_NINOS = ['2', '4', '6', '8', '10', '12', '14', '16'];
 const TALLAS_ADULTOS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const TIPOS = ['Niño', 'Maestro', 'Líder de Niños', 'Pastor', 'Padre/Madre', 'Voluntario', 'Invitado'];
+const TIPOS = ['Niño', 'Maestro', 'Líder de Niños', 'Pastor', 'Padre/Madre', 'Voluntario', 'Staff', 'Invitado'];
 
 const calcularEdad = (fechaNacimiento) => {
   if (!fechaNacimiento) return '';
@@ -21,6 +21,9 @@ const calcularEdad = (fechaNacimiento) => {
   return edad;
 };
 
+const generarGrupoId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+};
 const generarNumeroRegistro = async (eventId) => {
   const q = query(
     collection(db, 'participants'),
@@ -37,13 +40,15 @@ const generarNumeroRegistro = async (eventId) => {
 export default function FormParticipante({ participante, evento, onCancelar, onGuardado }) {
   const { userData, isNacional } = useAuth();
   const [guardando, setGuardando] = useState(false);
+  const [participanteGuardado, setParticipanteGuardado] = useState(null);
   const [errores, setErrores] = useState({});
 
-  const [form, setForm] = useState({
+ const [form, setForm] = useState({
     fullName: '', gender: '', birthDate: '', age: '',
     phone: '', email: '', church: '', district: !isNacional() ? userData?.distrito || '' : '', region: '',
     participantType: 'Niño', tshirtSize: '', foodRestrictions: '',
     medicalConditions: '', emergencyContact: '', guardianName: '', notes: '',
+    grupoFamiliarId: '',
   });
 
   useEffect(() => {
@@ -65,6 +70,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         emergencyContact: participante.emergencyContact || '',
         guardianName: participante.guardianName || '',
         notes: participante.notes || '',
+        grupoFamiliarId: participante.grupoFamiliarId || '',
       });
     }
   }, [participante]);
@@ -97,6 +103,8 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
     }
     setGuardando(true);
     try {
+      const grupoId = form.grupoFamiliarId || (participante?.grupoFamiliarId) || generarGrupoId();
+
       const datos = {
         ...form,
         fullName: form.fullName.trim(),
@@ -108,6 +116,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         eventName: evento.name,
         paymentStatus: participante?.paymentStatus || 'pending',
         amountPaid: participante?.amountPaid || 0,
+        grupoFamiliarId: grupoId,
       };
       if (participante) {
         await updateDoc(doc(db, 'participants', participante.id), {
@@ -121,8 +130,12 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
           createdAt: serverTimestamp(), createdBy: userData.uid
         });
         Swal.fire({ icon: 'success', title: 'Participante registrado', text: `Número de registro: ${registrationNumber}`, confirmButtonColor: '#1e3a8a' });
+        setParticipanteGuardado({ grupoFamiliarId: grupoId, church: datos.church, district: datos.district, region: datos.region });
+      } else {
+        await Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
+        onGuardado();
+        return;
       }
-      onGuardado();
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
@@ -318,6 +331,25 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
           </button>
         </div>
       </form>
+      {participanteGuardado && (
+  <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+    <p className="text-green-700 font-semibold text-sm mb-3">✅ Participante registrado correctamente</p>
+    <div className="flex gap-3">
+      <button type="button"
+        onClick={() => onGuardado({ ...participanteGuardado, agregarAcompanante: true })}
+        className="flex-1 bg-primary-800 hover:bg-primary-900 text-white font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        + Agregar acompañante
+      </button>
+      <button type="button" onClick={() => onGuardado()}
+        className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 transition">
+        Terminar
+      </button>
+    </div>
+  </div>
+)}
     </div>
   );
 }

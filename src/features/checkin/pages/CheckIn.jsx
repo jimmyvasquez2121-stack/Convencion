@@ -338,6 +338,7 @@ export default function CheckIn() {
                   <div>
                     <p className="font-medium text-gray-800 text-sm">{c.participantName}</p>
                     <p className="text-xs text-gray-400">#{c.registrationNumber} — {c.church}</p>
+                    <p className="text-xs text-gray-400">{c.district}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs font-semibold text-green-600">✅ {formatFecha(c.checkedInAt)}</p>
