@@ -122,15 +122,16 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         await updateDoc(doc(db, 'participants', participante.id), {
           ...datos, updatedAt: serverTimestamp(), updatedBy: userData.uid
         });
-        Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
+    Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
       } else {
         const registrationNumber = await generarNumeroRegistro(evento.id);
         await addDoc(collection(db, 'participants'), {
           ...datos, registrationNumber, checkedIn: false,
           createdAt: serverTimestamp(), createdBy: userData.uid
         });
-       Swal.fire({ icon: 'success', title: 'Participante registrado', text: `Número de registro: ${registrationNumber}`, confirmButtonColor: '#1e3a8a' });
+        Swal.fire({ icon: 'success', title: 'Participante registrado', text: `Número de registro: ${registrationNumber}`, confirmButtonColor: '#1e3a8a' });
         setParticipanteGuardado({ grupoFamiliarId: grupoId, church: datos.church, district: datos.district, region: datos.region });
+      }
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
