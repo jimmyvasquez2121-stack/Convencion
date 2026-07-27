@@ -118,11 +118,12 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         amountPaid: participante?.amountPaid || 0,
         grupoFamiliarId: grupoId,
       };
-      if (participante && !participante.esAcompanante) {
+     if (participante && participante.id && !participante.esAcompanante) {
         await updateDoc(doc(db, 'participants', participante.id), {
           ...datos, updatedAt: serverTimestamp(), updatedBy: userData.uid
         });
-    Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
+        onGuardado();
       } else {
         const registrationNumber = await generarNumeroRegistro(evento.id);
         await addDoc(collection(db, 'participants'), {
