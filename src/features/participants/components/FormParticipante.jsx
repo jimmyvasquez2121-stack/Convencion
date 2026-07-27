@@ -319,7 +319,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
                 </svg>
                 Guardando...
               </>
-            ) : (participante ? 'Guardar cambios' : 'Registrar participante')}
+            ) : (participante && !participante.esAcompanante ? 'Guardar cambios' : 'Registrar participante')}
           </button>
           <button type="button" onClick={onCancelar}
             className="px-6 py-3 rounded-lg border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 transition">
