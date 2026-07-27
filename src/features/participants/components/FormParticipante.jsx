@@ -129,13 +129,8 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
           ...datos, registrationNumber, checkedIn: false,
           createdAt: serverTimestamp(), createdBy: userData.uid
         });
-        Swal.fire({ icon: 'success', title: 'Participante registrado', text: `Número de registro: ${registrationNumber}`, confirmButtonColor: '#1e3a8a' });
+       Swal.fire({ icon: 'success', title: 'Participante registrado', text: `Número de registro: ${registrationNumber}`, confirmButtonColor: '#1e3a8a' });
         setParticipanteGuardado({ grupoFamiliarId: grupoId, church: datos.church, district: datos.district, region: datos.region });
-      } else {
-        await Swal.fire({ icon: 'success', title: 'Participante actualizado', timer: 1500, showConfirmButton: false });
-        onGuardado();
-        return;
-      }
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
