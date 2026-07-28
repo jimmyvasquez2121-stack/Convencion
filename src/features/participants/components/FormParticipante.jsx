@@ -320,6 +320,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
             paymentStatus: 'pending',
             amountPaid: 0,
             grupoFamiliarId,
+            registrationNumber,
             checkedIn: false,
             createdAt: serverTimestamp(),
             createdBy: userData.uid
