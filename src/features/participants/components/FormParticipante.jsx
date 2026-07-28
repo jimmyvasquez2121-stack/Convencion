@@ -26,16 +26,22 @@ const generarGrupoId = () => {
 };
 
 const generarNumeroRegistro = async (eventId) => {
-  const q = query(
-    collection(db, 'participants'),
-    where('eventId', '==', eventId),
-    orderBy('registrationNumber', 'desc'),
-    limit(1)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) return 1001;
-  const ultimo = snap.docs[0].data().registrationNumber || 1000;
-  return ultimo + 1;
+  try {
+    const q = query(
+      collection(db, 'participants'),
+      where('eventId', '==', eventId),
+      orderBy('registrationNumber', 'desc'),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return 1001;
+    const ultimo = snap.docs[0].data().registrationNumber;
+    if (!ultimo || isNaN(ultimo)) return 1001;
+    return Number(ultimo) + 1;
+  } catch (error) {
+    console.error('Error generando número:', error);
+    return Math.floor(Math.random() * 9000) + 1000;
+  }
 };
 
 const formularioVacio = (distrito = '', region = '', church = '') => ({
