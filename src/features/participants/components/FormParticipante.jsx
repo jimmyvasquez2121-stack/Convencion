@@ -297,8 +297,11 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         const grupoFamiliarId = generarGrupoId();
         const registrados = [];
 
+        let numeroBase = await generarNumeroRegistro(evento.id);
+
         for (const p of participantes) {
-          const registrationNumber = await generarNumeroRegistro(evento.id);
+        const registrationNumber = numeroBase;
+            numeroBase++;
           const datos = {
             ...p,
             fullName: p.fullName.trim(),
