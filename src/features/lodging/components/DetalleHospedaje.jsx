@@ -10,6 +10,8 @@ import Swal from 'sweetalert2';
 export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [participantes, setParticipantes] = useState([]);
+  const [grupofamiliar,setGrupoFamiliar] = useState([]);
+  const [cargandoGrupo, setCargandoGrupo] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [showBuscar, setShowBuscar] = useState(false);
@@ -40,7 +42,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
     });
   }, [showBuscar, evento.id]);
 
-  const asignarParticipante = async (participante) => {
+  const asignarParticipante = async (participante, soloEste = false) => {
     if (disponibles <= 0) {
       Swal.fire({ icon: 'warning', title: 'Sin espacio', text: 'Este lugar ya está lleno.', confirmButtonColor: '#1e3a8a' });
       return;
@@ -50,6 +52,33 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
       Swal.fire({ icon: 'warning', title: 'Ya asignado', text: 'Este participante ya está en este lugar.', confirmButtonColor: '#1e3a8a' });
       return;
     }
+
+    // Si tiene grupo familiar y no es asignación individual forzada
+    if (participante.grupoFamiliarId && !soloEste && grupoFamiliar.length === 0) {
+      setCargandoGrupo(true);
+      try {
+        const q = query(
+          collection(db, 'participants'),
+          where('grupoFamiliarId', '==', participante.grupoFamiliarId),
+          where('eventId', '==', evento.id)
+        );
+        const snap = await getDocs(q);
+        const miembros = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(p => p.id !== participante.id);
+        if (miembros.length > 0) {
+          setGrupoFamiliar({ principal: participante, miembros });
+          setCargandoGrupo(false);
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setCargandoGrupo(false);
+      }
+    }
+
+    // Asignar participante
     setAsignando(true);
     try {
       await addDoc(collection(db, 'lodgingAssignments'), {
@@ -61,9 +90,40 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
       const nuevoOcupados = ocupados + 1;
       await updateDoc(doc(db, 'lodging', lugar.id), { occupiedSpaces: nuevoOcupados });
       setOcupados(nuevoOcupados);
+      setGrupoFamiliar([]);
       setBusqueda('');
       setShowBuscar(false);
       Swal.fire({ icon: 'success', title: 'Participante asignado', timer: 1200, showConfirmButton: false });
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    } finally {
+      setAsignando(false);
+    }
+  };
+
+  const asignarGrupoCompleto = async () => {
+    if (!grupoFamiliar.principal) return;
+    const todos = [grupoFamiliar.principal, ...grupoFamiliar.miembros];
+    setAsignando(true);
+    try {
+      let ocupadosActual = ocupados;
+      for (const p of todos) {
+        const yaAsig = asignaciones.find(a => a.participantId === p.id);
+        if (yaAsig || ocupadosActual >= lugar.capacity) continue;
+        await addDoc(collection(db, 'lodgingAssignments'), {
+          lodgingId: lugar.id, lodgingName: lugar.name,
+          participantId: p.id, participantName: p.fullName,
+          registrationNumber: p.registrationNumber,
+          eventId: evento.id, assignedAt: serverTimestamp(), assignedBy: userData.uid
+        });
+        ocupadosActual++;
+      }
+      await updateDoc(doc(db, 'lodging', lugar.id), { occupiedSpaces: ocupadosActual });
+      setOcupados(ocupadosActual);
+      setGrupoFamiliar([]);
+      setBusqueda('');
+      setShowBuscar(false);
+      Swal.fire({ icon: 'success', title: 'Grupo asignado', timer: 1500, showConfirmButton: false });
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
@@ -153,6 +213,46 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
           <p className="text-red-600 font-semibold">⚠️ Este lugar está lleno</p>
         </div>
       )}
+
+      {grupoFamiliar.principal && (
+  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+    <p className="text-sm font-semibold text-blue-700 mb-3">
+      👨‍👩‍👧‍👦 Se detectó un grupo familiar
+    </p>
+    <div className="space-y-2 mb-4">
+      {[grupoFamiliar.principal, ...grupoFamiliar.miembros].map(p => {
+        const yaAsig = asignaciones.find(a => a.participantId === p.id);
+        return (
+          <div key={p.id} className="flex items-center justify-between bg-white rounded-lg p-2.5">
+            <div>
+              <p className="text-sm font-medium text-gray-800">{p.fullName}</p>
+              <p className="text-xs text-gray-400">{p.participantType} — #{p.registrationNumber}</p>
+            </div>
+            {yaAsig ? (
+              <span className="text-xs text-green-600 font-semibold">✅ Ya asignado</span>
+            ) : (
+              <span className="text-xs text-gray-400">Sin hospedaje</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+    <div className="flex gap-2">
+      <button onClick={asignarGrupoCompleto} disabled={asignando}
+        className="flex-1 bg-primary-800 hover:bg-primary-900 text-white text-sm font-medium py-2 rounded-lg transition">
+        Asignar grupo completo
+      </button>
+      <button onClick={() => asignarParticipante(grupoFamiliar.principal, true)} disabled={asignando}
+        className="flex-1 border border-primary-300 text-primary-700 text-sm font-medium py-2 rounded-lg hover:bg-primary-50 transition">
+        Solo este
+      </button>
+      <button onClick={() => setGrupoFamiliar([])}
+        className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition">
+        ✕
+      </button>
+    </div>
+  </div>
+)}
 
       {showBuscar && (
         <div className="bg-white rounded-xl border border-primary-200 p-4 mb-4">
