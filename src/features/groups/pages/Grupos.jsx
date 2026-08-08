@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   collection, query, where, onSnapshot,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
@@ -28,7 +28,7 @@ export default function Grupos() {
   const [grupoSeleccionado, setGrupoSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit,isNacional } = useAuth();
+  const { canEdit,isNacional,userData } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) { setGrupos([]); setLoading(false); return; }
@@ -108,7 +108,130 @@ export default function Grupos() {
   }
 
   const totalMiembros = grupos.reduce((sum, g) => sum + (g.memberCount || 0), 0);
+const autoAsignarNinos = async () => {
+    if (grupos.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'Sin grupos', text: 'Primero crea los grupos antes de auto-asignar.', confirmButtonColor: '#1e3a8a' });
+      return;
+    }
 
+    const result = await Swal.fire({
+      title: '¿Auto-asignar niños?',
+      text: 'Se distribuirán todos los niños sin grupo asignado, balanceando edades y manteniendo familias juntas.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, auto-asignar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#1e3a8a',
+      cancelButtonColor: '#9ca3af'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      // 1. Obtener todos los niños del evento sin grupo asignado
+      const qNinos = query(
+        collection(db, 'participants'),
+        where('eventId', '==', eventoActivo.id),
+        where('participantType', '==', 'Niño')
+      );
+      const snapNinos = await getDocs(qNinos);
+      const todosNinos = snapNinos.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      // 2. Obtener niños que ya tienen grupo
+      const qMiembros = query(
+        collection(db, 'groupMembers'),
+        where('eventId', '==', eventoActivo.id)
+      );
+      const snapMiembros = await getDocs(qMiembros);
+      const idsConGrupo = new Set(snapMiembros.docs.map(d => d.data().participantId));
+
+      // 3. Filtrar solo los que NO tienen grupo
+      const ninosSinGrupo = todosNinos.filter(n => !idsConGrupo.has(n.id));
+
+      if (ninosSinGrupo.length === 0) {
+        Swal.fire({ icon: 'info', title: 'Sin niños pendientes', text: 'Todos los niños ya tienen grupo asignado.', confirmButtonColor: '#1e3a8a' });
+        return;
+      }
+
+      // 4. Agrupar por grupoFamiliarId
+      const familias = {};
+      const sinFamilia = [];
+      ninosSinGrupo.forEach(n => {
+        if (n.grupoFamiliarId) {
+          if (!familias[n.grupoFamiliarId]) familias[n.grupoFamiliarId] = [];
+          familias[n.grupoFamiliarId].push(n);
+        } else {
+          sinFamilia.push(n);
+        }
+      });
+
+      // 5. Crear lista de unidades a distribuir (familia o niño individual)
+      const unidades = [
+        ...Object.values(familias),
+        ...sinFamilia.map(n => [n])
+      ];
+
+      // Ordenar unidades por edad promedio para mejor balance
+      unidades.sort((a, b) => {
+        const edadA = a.reduce((s, n) => s + (n.age || 10), 0) / a.length;
+        const edadB = b.reduce((s, n) => s + (n.age || 10), 0) / b.length;
+        return edadA - edadB;
+      });
+
+      // 6. Distribuir en grupos balanceando edades (snake draft)
+      const gruposOrdenados = [...grupos].sort((a, b) => (a.memberCount || 0) - (b.memberCount || 0));
+      const asignaciones = gruposOrdenados.map(g => ({ grupo: g, ninos: [] }));
+
+      let direccion = 1;
+      let indice = 0;
+
+      for (const unidad of unidades) {
+        // Verificar capacidad
+        const grupoActual = asignaciones[indice];
+        const capacidadDisponible = grupoActual.grupo.capacity > 0
+          ? grupoActual.grupo.capacity - (grupoActual.grupo.memberCount || 0) - grupoActual.ninos.length
+          : Infinity;
+
+        if (capacidadDisponible >= unidad.length) {
+          grupoActual.ninos.push(...unidad);
+        }
+
+        indice += direccion;
+        if (indice >= asignaciones.length) { indice = asignaciones.length - 1; direccion = -1; }
+        if (indice < 0) { indice = 0; direccion = 1; }
+      }
+
+      // 7. Guardar en Firestore
+      let totalAsignados = 0;
+      for (const { grupo, ninos } of asignaciones) {
+        if (ninos.length === 0) continue;
+        for (const nino of ninos) {
+          await addDoc(collection(db, 'groupMembers'), {
+            groupId: grupo.id, groupName: grupo.name,
+            participantId: nino.id, participantName: nino.fullName,
+            registrationNumber: nino.registrationNumber,
+            participantType: nino.participantType,
+            eventId: eventoActivo.id,
+            assignedAt: serverTimestamp(), assignedBy: userData.uid
+          });
+          totalAsignados++;
+        }
+        await updateDoc(doc(db, 'groups', grupo.id), {
+          memberCount: (grupo.memberCount || 0) + ninos.length
+        });
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Auto-asignación completada!',
+        text: `${totalAsignados} niños distribuidos en ${grupos.length} grupos.`,
+        confirmButtonColor: '#1e3a8a'
+      });
+
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    }
+  };
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
@@ -116,15 +239,26 @@ export default function Grupos() {
           <h1 className="text-2xl font-bold text-gray-800">Grupos de Niños</h1>
           <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name} — {grupos.length} grupos, {totalMiembros} miembros</p>
         </div>
-        {isNacional() && (
-          <button onClick={() => { setGrupoSeleccionado(null); setVista('form'); }}
-            className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Grupo
-          </button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {isNacional() && grupos.length > 0 && (
+            <button onClick={autoAsignarNinos}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-lg font-medium transition">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Auto-asignar niños
+            </button>
+          )}
+          {isNacional() && (
+            <button onClick={() => { setGrupoSeleccionado(null); setVista('form'); }}
+              className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nuevo Grupo
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (

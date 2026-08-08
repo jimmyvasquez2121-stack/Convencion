@@ -15,6 +15,8 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
   const [showBuscar, setShowBuscar] = useState(false);
   const [asignando, setAsignando] = useState(false);
   const [memberCount, setMemberCount] = useState(grupo.memberCount || 0);
+  const [miembroAReasignar, setMiembroAReasignar] = useState(null);
+  const [todosGrupos, setTodosGrupos] = useState([]);
   const { userData, canEdit,isNacional } = useAuth();
 
   const color = colores.find(c => c.name === grupo.color) || colores[0];
@@ -68,6 +70,54 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
     }
   };
 
+  const iniciarReasignacion = async (miembro) => {
+    try {
+      const q = query(
+        collection(db, 'groups'),
+        where('eventId', '==', evento.id)
+      );
+      const snap = await getDocs(q);
+      const grupos = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(g => g.id !== grupo.id);
+      setTodosGrupos(grupos);
+      setMiembroAReasignar(miembro);
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    }
+  };
+
+  const reasignarMiembro = async (grupoDestino) => {
+    if (!miembroAReasignar) return;
+    try {
+      // Quitar del grupo actual
+      await deleteDoc(doc(db, 'groupMembers', miembroAReasignar.id));
+      await updateDoc(doc(db, 'groups', grupo.id), {
+        memberCount: Math.max(memberCount - 1, 0)
+      });
+      setMemberCount(prev => Math.max(prev - 1, 0));
+
+      // Agregar al grupo destino
+      await addDoc(collection(db, 'groupMembers'), {
+        groupId: grupoDestino.id, groupName: grupoDestino.name,
+        participantId: miembroAReasignar.participantId,
+        participantName: miembroAReasignar.participantName,
+        registrationNumber: miembroAReasignar.registrationNumber,
+        participantType: miembroAReasignar.participantType,
+        eventId: evento.id,
+        assignedAt: serverTimestamp(), assignedBy: userData.uid
+      });
+      await updateDoc(doc(db, 'groups', grupoDestino.id), {
+        memberCount: (grupoDestino.memberCount || 0) + 1
+      });
+
+      setMiembroAReasignar(null);
+      setTodosGrupos([]);
+      Swal.fire({ icon: 'success', title: 'Miembro reasignado', timer: 1200, showConfirmButton: false });
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    }
+  };
   const removerMiembro = async (miembro) => {
     const result = await Swal.fire({
       title: '¿Remover miembro?', text: `¿Remover a "${miembro.participantName}" del grupo?`,
@@ -202,6 +252,26 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
         </div>
       )}
 
+      {miembroAReasignar && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <p className="text-sm font-semibold text-blue-700 mb-3">
+            🔄 Mover a: <span className="font-bold">{miembroAReasignar.participantName}</span>
+          </p>
+          <div className="space-y-2 mb-3">
+            {todosGrupos.map(g => (
+              <button key={g.id} onClick={() => reasignarMiembro(g)}
+                className="w-full text-left px-3 py-2 bg-white rounded-lg border border-gray-200 hover:border-primary-300 hover:bg-primary-50 transition text-sm">
+                <span className="font-medium text-gray-800">{g.name}</span>
+                <span className="text-gray-400 ml-2">({g.memberCount || 0} miembros)</span>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { setMiembroAReasignar(null); setTodosGrupos([]); }}
+            className="text-sm text-gray-500 hover:text-gray-700">
+            Cancelar
+          </button>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-700 mb-4">Miembros del Grupo ({memberCount})</h2>
         {loading ? (
@@ -216,25 +286,34 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
         ) : (
           <div className="space-y-2">
             {miembros.map((m, index) => (
-              <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <span className={`w-7 h-7 rounded-full ${color.bg} text-white text-xs font-bold flex items-center justify-center`}>
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-medium text-gray-800 text-sm">{m.participantName}</p>
-                    <p className="text-xs text-gray-400">#{m.registrationNumber} — {m.participantType}</p>
-                  </div>
-                </div>
-                {isNacional() && (
-                  <button onClick={() => removerMiembro(m)} className="text-red-400 hover:text-red-600 transition p-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            ))}
+  <div key={m.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+    <div className="flex items-center gap-3">
+      <span className={`w-7 h-7 rounded-full ${color.bg} text-white text-xs font-bold flex items-center justify-center`}>
+        {index + 1}
+      </span>
+      <div>
+        <p className="font-medium text-gray-800 text-sm">{m.participantName}</p>
+        <p className="text-xs text-gray-400">#{m.registrationNumber} — {m.participantType}</p>
+      </div>
+    </div>
+    {isNacional() && (
+      <div className="flex gap-1">
+        <button onClick={() => iniciarReasignacion(m)}
+          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+          title="Mover a otro grupo">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        </button>
+        <button onClick={() => removerMiembro(m)} className="text-red-400 hover:text-red-600 transition p-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    )}
+  </div>
+))}
           </div>
         )}
       </div>
