@@ -16,9 +16,7 @@ const COLORES = [
   { name: 'Verde',    bg: 'bg-green-500',  light: 'bg-green-100',  text: 'text-green-700' },
   { name: 'Amarillo', bg: 'bg-yellow-400', light: 'bg-yellow-100', text: 'text-yellow-700' },
   { name: 'Morado',   bg: 'bg-purple-500', light: 'bg-purple-100', text: 'text-purple-700' },
-  { name: 'Naranja',  bg: 'bg-orange-500', light: 'bg-orange-100', text: 'text-orange-700' },
   { name: 'Rosa',     bg: 'bg-pink-500',   light: 'bg-pink-100',   text: 'text-pink-700' },
-  { name: 'Celeste',  bg: 'bg-cyan-500',   light: 'bg-cyan-100',   text: 'text-cyan-700' },
 ];
 
 export { COLORES };

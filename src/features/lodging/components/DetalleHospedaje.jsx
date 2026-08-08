@@ -10,8 +10,8 @@ import Swal from 'sweetalert2';
 export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [participantes, setParticipantes] = useState([]);
-  const [grupofamiliar,setGrupoFamiliar] = useState([]);
-  const [cargandoGrupo, setCargandoGrupo] = useState([]);
+  const [grupoFamiliar, setGrupoFamiliar] = useState([]);
+  const [cargandoGrupo, setCargandoGrupo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [showBuscar, setShowBuscar] = useState(false);
@@ -53,21 +53,40 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
       return;
     }
 
-    // Si tiene grupo familiar y no es asignación individual forzada
     if (participante.grupoFamiliarId && !soloEste && grupoFamiliar.length === 0) {
       setCargandoGrupo(true);
       try {
-        const q = query(
+        // Buscar miembros del grupo
+        const qGrupo = query(
           collection(db, 'participants'),
           where('grupoFamiliarId', '==', participante.grupoFamiliarId),
           where('eventId', '==', evento.id)
         );
-        const snap = await getDocs(q);
-        const miembros = snap.docs
+        const snapGrupo = await getDocs(qGrupo);
+        const miembros = snapGrupo.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(p => p.id !== participante.id);
+
         if (miembros.length > 0) {
-          setGrupoFamiliar({ principal: participante, miembros });
+          // Buscar si algún miembro ya tiene hospedaje asignado en cualquier lugar
+          const qAsig = query(
+            collection(db, 'lodgingAssignments'),
+            where('eventId', '==', evento.id)
+          );
+          const snapAsig = await getDocs(qAsig);
+          const todasAsignaciones = snapAsig.docs.map(d => ({ id: d.id, ...d.data() }));
+
+          const miembrosConEstado = miembros.map(m => ({
+            ...m,
+            hospedajeAsignado: todasAsignaciones.find(a => a.participantId === m.id)?.lodgingName || null
+          }));
+
+          const principalConEstado = {
+            ...participante,
+            hospedajeAsignado: todasAsignaciones.find(a => a.participantId === participante.id)?.lodgingName || null
+          };
+
+          setGrupoFamiliar({ principal: principalConEstado, miembros: miembrosConEstado });
           setCargandoGrupo(false);
           return;
         }
@@ -77,8 +96,15 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
         setCargandoGrupo(false);
       }
     }
-
-    // Asignar participante
+if (participante.hospedajeAsignado) {
+Swal.fire({ 
+icon: 'warning', 
+title: 'Ya tiene hospedaje', 
+text: `${participante.fullName} ya está asignado en "${participante.hospedajeAsignado}".`,
+confirmButtonColor: '#1e3a8a'
+      });
+return;
+    }
     setAsignando(true);
     try {
       await addDoc(collection(db, 'lodgingAssignments'), {
@@ -104,12 +130,22 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
   const asignarGrupoCompleto = async () => {
     if (!grupoFamiliar.principal) return;
     const todos = [grupoFamiliar.principal, ...grupoFamiliar.miembros];
+    
+    const disponibles_count = todos.filter(p => !p.hospedajeAsignado && !asignaciones.find(a => a.participantId === p.id)).length;
+    
+    if (disponibles_count === 0) {
+      Swal.fire({ icon: 'info', title: 'Sin cambios', text: 'Todos los miembros del grupo ya tienen hospedaje asignado.', confirmButtonColor: '#1e3a8a' });
+      return;
+    }
+
     setAsignando(true);
     try {
       let ocupadosActual = ocupados;
+      let asignados = 0;
       for (const p of todos) {
-        const yaAsig = asignaciones.find(a => a.participantId === p.id);
-        if (yaAsig || ocupadosActual >= lugar.capacity) continue;
+        const yaAsigAqui = asignaciones.find(a => a.participantId === p.id);
+        const yaAsigEnOtro = p.hospedajeAsignado;
+        if (yaAsigAqui || yaAsigEnOtro || ocupadosActual >= lugar.capacity) continue;
         await addDoc(collection(db, 'lodgingAssignments'), {
           lodgingId: lugar.id, lodgingName: lugar.name,
           participantId: p.id, participantName: p.fullName,
@@ -117,13 +153,20 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
           eventId: evento.id, assignedAt: serverTimestamp(), assignedBy: userData.uid
         });
         ocupadosActual++;
+        asignados++;
       }
       await updateDoc(doc(db, 'lodging', lugar.id), { occupiedSpaces: ocupadosActual });
       setOcupados(ocupadosActual);
       setGrupoFamiliar([]);
       setBusqueda('');
       setShowBuscar(false);
-      Swal.fire({ icon: 'success', title: 'Grupo asignado', timer: 1500, showConfirmButton: false });
+      Swal.fire({ 
+        icon: 'success', 
+        title: asignados > 0 ? `${asignados} participante(s) asignado(s)` : 'Sin cambios',
+        text: asignados > 0 ? '' : 'Los miembros disponibles ya tienen hospedaje.',
+        timer: 1500, 
+        showConfirmButton: false 
+      });
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
@@ -215,44 +258,46 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
       )}
 
       {grupoFamiliar.principal && (
-  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
-    <p className="text-sm font-semibold text-blue-700 mb-3">
-      👨‍👩‍👧‍👦 Se detectó un grupo familiar
-    </p>
-    <div className="space-y-2 mb-4">
-      {[grupoFamiliar.principal, ...grupoFamiliar.miembros].map(p => {
-        const yaAsig = asignaciones.find(a => a.participantId === p.id);
-        return (
-          <div key={p.id} className="flex items-center justify-between bg-white rounded-lg p-2.5">
-            <div>
-              <p className="text-sm font-medium text-gray-800">{p.fullName}</p>
-              <p className="text-xs text-gray-400">{p.participantType} — #{p.registrationNumber}</p>
-            </div>
-            {yaAsig ? (
-              <span className="text-xs text-green-600 font-semibold">✅ Ya asignado</span>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+          <p className="text-sm font-semibold text-blue-700 mb-3">
+            👨‍👩‍👧‍👦 Se detectó un grupo familiar
+          </p>
+          <div className="space-y-2 mb-4">
+            {[grupoFamiliar.principal, ...grupoFamiliar.miembros].map(p => {
+              const yaAsig = asignaciones.find(a => a.participantId === p.id);
+              return (
+                <div key={p.id} className="flex items-center justify-between bg-white rounded-lg p-2.5">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{p.fullName}</p>
+                    <p className="text-xs text-gray-400">{p.participantType} — #{p.registrationNumber}</p>
+                  </div>
+                  {p.hospedajeAsignado ? (
+              <span className="text-xs text-green-600 font-semibold">✅ {p.hospedajeAsignado}</span>
+            ) : yaAsig ? (
+              <span className="text-xs text-green-600 font-semibold">✅ Este lugar</span>
             ) : (
               <span className="text-xs text-gray-400">Sin hospedaje</span>
             )}
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-    </div>
-    <div className="flex gap-2">
-      <button onClick={asignarGrupoCompleto} disabled={asignando}
-        className="flex-1 bg-primary-800 hover:bg-primary-900 text-white text-sm font-medium py-2 rounded-lg transition">
-        Asignar grupo completo
-      </button>
-      <button onClick={() => asignarParticipante(grupoFamiliar.principal, true)} disabled={asignando}
-        className="flex-1 border border-primary-300 text-primary-700 text-sm font-medium py-2 rounded-lg hover:bg-primary-50 transition">
-        Solo este
-      </button>
-      <button onClick={() => setGrupoFamiliar([])}
-        className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition">
-        ✕
-      </button>
-    </div>
-  </div>
-)}
+          <div className="flex gap-2">
+            <button onClick={asignarGrupoCompleto} disabled={asignando}
+              className="flex-1 bg-primary-800 hover:bg-primary-900 text-white text-sm font-medium py-2 rounded-lg transition">
+              Asignar grupo completo
+            </button>
+            <button onClick={() => asignarParticipante(grupoFamiliar.principal, true)} disabled={asignando}
+              className="flex-1 border border-primary-300 text-primary-700 text-sm font-medium py-2 rounded-lg hover:bg-primary-50 transition">
+              Solo este
+            </button>
+            <button onClick={() => setGrupoFamiliar([])}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition">
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {showBuscar && (
         <div className="bg-white rounded-xl border border-primary-200 p-4 mb-4">
@@ -307,7 +352,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
                   <p className="text-xs text-gray-400">Registro #{a.registrationNumber}</p>
                 </div>
                 {isNacional() && (
-                 <button onClick={() => removerAsignacion(a)} className="text-red-400 hover:text-red-600 transition p-1">
+                  <button onClick={() => removerAsignacion(a)} className="text-red-400 hover:text-red-600 transition p-1">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>

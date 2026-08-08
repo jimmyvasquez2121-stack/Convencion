@@ -91,13 +91,13 @@ export default function FormGrupo({ grupo, colores, onGuardar, onCancelar }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Maestro</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lider</label>
               <input type="text" name="teacher" value={form.teacher} onChange={cambiar}
                 placeholder="Nombre del maestro"
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Líder</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">CoLider</label>
               <input type="text" name="leader" value={form.leader} onChange={cambiar}
                 placeholder="Nombre del líder"
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition" />

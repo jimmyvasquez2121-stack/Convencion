@@ -139,7 +139,7 @@ function SubFormulario({ index, data, onChange, onRemove, isNacional, userData, 
                 className={`w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition ${!isNacional ? 'bg-gray-100 cursor-not-allowed' : ''}`} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Región</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Departamento, pueblo o ciudad</label>
               <input type="text" name="region" value={data.region} onChange={cambiar}
                 placeholder="Nombre de la región"
                 className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition" />
@@ -213,7 +213,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
   const { userData, isNacional } = useAuth();
   const [guardando, setGuardando] = useState(false);
 
-  const distritoInicial = !isNacional() ? userData?.distrito || '' : '';
+  const distritoInicial = !isNacional() ? (userData?.distrito || userData?.district || '') : '';
   const regionInicial = !isNacional() ? userData?.region || '' : '';
   const churchInicial = participante?.church || '';
 
@@ -223,6 +223,18 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
     }
     return [formularioVacio(distritoInicial, regionInicial, churchInicial)];
   });
+  useEffect(() => {
+    if (!isNacional() && userData?.distrito && !participante?.id) {
+      setParticipantes(prev => {
+        if (prev.length > 0 && !prev[0].district) {
+          const nuevos = [...prev];
+          nuevos[0] = { ...nuevos[0], district: userData.distrito };
+          return nuevos;
+        }
+        return prev;
+      });
+    }
+  }, [userData]);
 
   const actualizarParticipante = (index, nuevosDatos) => {
     setParticipantes(prev => {
