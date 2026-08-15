@@ -17,6 +17,7 @@ const TIPO_COLORS = {
   'Pastor':         'bg-yellow-100 text-yellow-700',
   'Padre/Madre':    'bg-orange-100 text-orange-700',
   'Voluntario':     'bg-pink-100 text-pink-700',
+  'Staff':          'bg-indigo-100 text-indigo-700',
   'Invitado':       'bg-gray-100 text-gray-700',
 };
 
@@ -197,6 +198,7 @@ export default function Participantes() {
           <option value="Pastor">Pastor</option>
           <option value="Padre/Madre">Padre/Madre</option>
           <option value="Voluntario">Voluntario</option>
+          <option value="Staff">Staff</option>
           <option value="Invitado">Invitado</option>
         </select>
         <select
