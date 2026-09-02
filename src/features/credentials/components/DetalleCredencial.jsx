@@ -1,5 +1,7 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../../firebase/config';
 
 const TIPO_COLORS = {
   'Niño':           { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
@@ -14,6 +16,26 @@ const TIPO_COLORS = {
 export default function DetalleCredencial({ participante: p, evento, onVolver }) {
   const credencialRef = useRef(null);
   const colores = TIPO_COLORS[p.participantType] || TIPO_COLORS['Invitado'];
+  const [grupoNombre, setGrupoNombre] = useState(null);
+
+  useEffect(() => {
+    const cargarGrupo = async () => {
+      try {
+        const q = query(
+          collection(db, 'groupMembers'),
+          where('participantId', '==', p.id),
+          where('eventId', '==', evento.id)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setGrupoNombre(snap.docs[0].data().groupName);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    cargarGrupo();
+  }, [p.id, evento.id]);
 
   const qrData = JSON.stringify({
     id: p.id, reg: p.registrationNumber,
@@ -112,6 +134,11 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
             {p.church && <p className="text-gray-600 text-sm mt-2 font-medium">{p.church}</p>}
             {p.district && <p className="text-gray-400 text-xs mt-1">{p.district}</p>}
             {p.region && <p className="text-gray-400 text-xs">{p.region}</p>}
+            {grupoNombre && (
+           <div className="mt-2 inline-block bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+            {grupoNombre}
+           </div>
+            )}
           </div>
 
           <div className="bg-gray-50 border-t border-gray-200 px-4 py-3 text-center">

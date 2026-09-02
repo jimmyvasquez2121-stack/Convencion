@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-  collection, query, where, orderBy,
-  onSnapshot, deleteDoc, doc
+    collection, query, where, orderBy,
+  onSnapshot, deleteDoc, doc, getDocs
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
@@ -36,6 +36,7 @@ const PAYMENT_LABELS = {
 export default function Participantes() {
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [gruposPorParticipante, setGruposPorParticipante] = useState({});
   const [busqueda, setBusqueda] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPago, setFiltroPago] = useState('');
@@ -74,6 +75,29 @@ export default function Participantes() {
     });
     return unsub;
   }, [eventoActivo, userData]);
+  useEffect(() => {
+    if (!eventoActivo || participantes.length === 0) return;
+    
+    const cargarGrupos = async () => {
+      try {
+        const q = query(
+          collection(db, 'groupMembers'),
+          where('eventId', '==', eventoActivo.id)
+        );
+        const snap = await getDocs(q);
+        const mapa = {};
+        snap.docs.forEach(d => {
+          const data = d.data();
+          mapa[data.participantId] = data.groupName;
+        });
+        setGruposPorParticipante(mapa);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    cargarGrupos();
+  }, [eventoActivo, participantes]);
 
   const participantesFiltrados = participantes.filter(p => {
     const texto = busqueda.toLowerCase();
@@ -255,6 +279,7 @@ export default function Participantes() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden sm:table-cell">Tipo</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Iglesia</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Distrito</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Grupo</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Pago</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Acciones</th>
                 </tr>
@@ -274,6 +299,15 @@ export default function Participantes() {
                     </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{p.church}</td>
                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell">{p.district}</td>
+                    <td className="px-4 py-3">
+                      {gruposPorParticipante[p.id] ? (
+                   <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-1 rounded-full">
+                     {gruposPorParticipante[p.id]}
+                   </span>
+                     ) : (
+                   <span className="text-gray-300 text-xs">—</span>
+                     )}
+                   </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2 py-1 rounded-full ${PAYMENT_COLORS[p.paymentStatus] || PAYMENT_COLORS.pending}`}>
                         {PAYMENT_LABELS[p.paymentStatus] || 'Pendiente'}
