@@ -37,6 +37,7 @@ export default function Participantes() {
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gruposPorParticipante, setGruposPorParticipante] = useState({});
+  const [hospedajePorParticipante, setHospedajePorParticipante] = useState({});
   const [busqueda, setBusqueda] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroPago, setFiltroPago] = useState('');
@@ -97,6 +98,30 @@ export default function Participantes() {
     };
 
     cargarGrupos();
+  }, [eventoActivo, participantes]);
+
+  useEffect(() => {
+    if (!eventoActivo || participantes.length === 0) return;
+    
+    const cargarHospedaje = async () => {
+      try {
+        const q = query(
+          collection(db, 'lodgingAssignments'),
+          where('eventId', '==', eventoActivo.id)
+        );
+        const snap = await getDocs(q);
+        const mapa = {};
+        snap.docs.forEach(d => {
+          const data = d.data();
+          mapa[data.participantId] = data.lodgingName;
+        });
+        setHospedajePorParticipante(mapa);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    cargarHospedaje();
   }, [eventoActivo, participantes]);
 
   const participantesFiltrados = participantes.filter(p => {
@@ -280,6 +305,7 @@ export default function Participantes() {
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden md:table-cell">Iglesia</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 hidden lg:table-cell">Distrito</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Grupo</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-600">Hospedaje</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Pago</th>
                   <th className="text-left px-4 py-3 font-semibold text-gray-600">Acciones</th>
                 </tr>
@@ -303,6 +329,15 @@ export default function Participantes() {
                       {gruposPorParticipante[p.id] ? (
                    <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-1 rounded-full">
                      {gruposPorParticipante[p.id]}
+                   </span>
+                     ) : (
+                   <span className="text-gray-300 text-xs">—</span>
+                     )}
+                   </td>
+                   <td className="px-4 py-3">
+                     {hospedajePorParticipante[p.id] ? (
+                   <span className="bg-orange-100 text-orange-700 text-xs font-medium px-2 py-1 rounded-full">
+                     {hospedajePorParticipante[p.id]}
                    </span>
                      ) : (
                    <span className="text-gray-300 text-xs">—</span>

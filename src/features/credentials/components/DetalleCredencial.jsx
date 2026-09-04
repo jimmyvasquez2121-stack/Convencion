@@ -20,7 +20,7 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
 
   useEffect(() => {
     const cargarGrupo = async () => {
-      try {
+      try { 
         const q = query(
           collection(db, 'groupMembers'),
           where('participantId', '==', p.id),
@@ -35,6 +35,26 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
       }
     };
     cargarGrupo();
+  }, [p.id, evento.id]);
+  const [hospedajeNombre, setHospedajeNombre] = useState(null);
+
+  useEffect(() => {
+    const cargarHospedaje = async () => {
+      try {
+        const q = query(
+          collection(db, 'lodgingAssignments'),
+          where('participantId', '==', p.id),
+          where('eventId', '==', evento.id)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setHospedajeNombre(snap.docs[0].data().lodgingName);
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    cargarHospedaje();
   }, [p.id, evento.id]);
 
   const qrData = JSON.stringify({
@@ -137,6 +157,11 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
             {grupoNombre && (
            <div className="mt-2 inline-block bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
             {grupoNombre}
+           </div>
+            )}
+            {hospedajeNombre && (
+           <div className="mt-1 inline-block bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">
+            🏠 {hospedajeNombre}
            </div>
             )}
           </div>
