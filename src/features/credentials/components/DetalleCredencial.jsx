@@ -11,32 +11,29 @@ const TIPO_COLORS = {
   'Padre/Madre':    { bg: '#ffedd5', text: '#c2410c', border: '#fdba74' },
   'Voluntario':     { bg: '#fce7f3', text: '#be185d', border: '#f9a8d4' },
   'Invitado':       { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+  'Staff':          { bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc' },
 };
 
 export default function DetalleCredencial({ participante: p, evento, onVolver }) {
   const credencialRef = useRef(null);
   const colores = TIPO_COLORS[p.participantType] || TIPO_COLORS['Invitado'];
   const [grupoNombre, setGrupoNombre] = useState(null);
+  const [hospedajeNombre, setHospedajeNombre] = useState(null);
 
   useEffect(() => {
     const cargarGrupo = async () => {
-      try { 
+      try {
         const q = query(
           collection(db, 'groupMembers'),
           where('participantId', '==', p.id),
           where('eventId', '==', evento.id)
         );
         const snap = await getDocs(q);
-        if (!snap.empty) {
-          setGrupoNombre(snap.docs[0].data().groupName);
-        }
-      } catch (error) {
-        console.error(error);
-      }
+        if (!snap.empty) setGrupoNombre(snap.docs[0].data().groupName);
+      } catch (error) { console.error(error); }
     };
     cargarGrupo();
   }, [p.id, evento.id]);
-  const [hospedajeNombre, setHospedajeNombre] = useState(null);
 
   useEffect(() => {
     const cargarHospedaje = async () => {
@@ -47,12 +44,8 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
           where('eventId', '==', evento.id)
         );
         const snap = await getDocs(q);
-        if (!snap.empty) {
-          setHospedajeNombre(snap.docs[0].data().lodgingName);
-        }
-      } catch (error) {
-        console.error(error);
-      }
+        if (!snap.empty) setHospedajeNombre(snap.docs[0].data().lodgingName);
+      } catch (error) { console.error(error); }
     };
     cargarHospedaje();
   }, [p.id, evento.id]);
@@ -63,47 +56,61 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
   });
 
   const handlePrint = () => {
+   const qrSvg = document.querySelector('#qr-print svg');
+   const qrSvgHtml = qrSvg ? qrSvg.outerHTML : '';
+
     const contenido = `
       <html>
       <head>
         <title>Credencial - ${p.fullName}</title>
         <style>
-          body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f3f4f6; }
-          .credencial { width: 320px; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15); background: white; }
-          .header { background: #1e3a8a; color: white; padding: 16px; text-align: center; }
-          .header h2 { margin: 0; font-size: 14px; font-weight: bold; }
-          .header p { margin: 4px 0 0; font-size: 11px; opacity: 0.8; }
-          .tipo-badge { margin: 12px auto 0; display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 12px; font-weight: bold;
-            background: ${colores.bg}; color: ${colores.text}; border: 1px solid ${colores.border}; }
-          .body { padding: 20px; text-align: center; }
-          .nombre { font-size: 18px; font-weight: bold; color: #1f2937; margin: 12px 0 4px; }
-          .reg { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
-          .iglesia { font-size: 12px; color: #374151; margin-bottom: 4px; }
-          .distrito { font-size: 11px; color: #6b7280; }
-          .qr-box { margin: 16px auto; padding: 12px; background: white; border: 2px solid #e5e7eb; border-radius: 12px; display: inline-block; }
-          .footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 10px; text-align: center; font-size: 10px; color: #9ca3af; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; margin: 0; padding: 0; }
+          @page { size: 54mm 85mm; margin: 0; }
+          body { font-family: Arial, sans-serif; width: 54mm; height: 85mm; overflow: hidden; background: white; }
+          .credencial { width: 54mm; height: 85mm; display: flex; flex-direction: column; overflow: hidden; }
+          .header { background: #1e3a8a !important; color: white; padding: 6px 8px; text-align: center; }
+          .header h2 { font-size: 8px; font-weight: bold; line-height: 1.2; }
+          .header p { font-size: 6.5px; opacity: 0.8; margin-top: 2px; }
+          .tipo-badge { margin: 4px auto 0; display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 7px; font-weight: bold;
+            background: ${colores.bg} !important; color: ${colores.text}; border: 1px solid ${colores.border}; }
+          .body { flex: 1; padding: 6px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+          .qr-box { width: 170px; height: 170px; margin: 0 auto 4px; border: 1.5px solid #e5e7eb; border-radius: 6px; padding: 4px; background: white; }
+          .qr-box svg { width: 100%; height: 100%; display: blok; }
+          .nombre { font-size: 9px; font-weight: bold; color: #1f2937; margin: 3px 0 1px; line-height: 1.2; }
+          .reg { font-size: 7px; color: #6b7280; margin-bottom: 2px; }
+          .info { font-size: 7px; color: #374151; margin-bottom: 1px; }
+          .badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 6.5px; font-weight: bold; margin: 1px 1px 0; }
+          .badge-purple { background: #f3e8ff !important; color: #7c3aed; }
+          .badge-orange { background: #ffedd5 !important; color: #c2410c; }
+          .footer { background: #f9fafb !important; border-top: 1px solid #e5e7eb; padding: 4px; text-align: center; font-size: 6px; color: #9ca3af; }
         </style>
       </head>
       <body>
         <div class="credencial">
           <div class="header">
             <h2>${evento.name}</h2>
-            <p>Iglesia de Dios — Ministerio Nacional de Niños</p>
+            <p>Iglesia de Dios — Directiva Infantil Nacional</p>
             <div class="tipo-badge">${p.participantType}</div>
           </div>
           <div class="body">
-            <div class="qr-box">[Escanear QR desde la app]</div>
+            <div class="qr-box">
+              ${qrSvgHtml ||'<p style="font-size:6px;color:#999">QR</p>'}
+            </div>
             <div class="nombre">${p.fullName}</div>
             <div class="reg">Registro #${p.registrationNumber}</div>
-            ${p.church ? `<div class="iglesia">${p.church}</div>` : ''}
-            ${p.district ? `<div class="distrito">${p.district}</div>` : ''}
+            ${p.church ? `<div class="info">${p.church}</div>` : ''}
+            ${p.district ? `<div class="info" style="color:#6b7280;font-size:6.5px">${p.district}</div>` : ''}
+            <div style="margin-top:3px">
+              ${grupoNombre ? `<span class="badge badge-purple">${grupoNombre}</span>` : ''}
+              ${hospedajeNombre ? `<span class="badge badge-orange">🏠 ${hospedajeNombre}</span>` : ''}
+            </div>
           </div>
           <div class="footer">Credencial válida únicamente para este evento</div>
         </div>
       </body>
       </html>
     `;
-    const ventana = window.open('', '_blank');
+    const ventana = window.open('', '_blank', 'width=300,height=500');
     ventana.document.write(contenido);
     ventana.document.close();
     ventana.print();
@@ -134,7 +141,7 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
         <div ref={credencialRef} className="w-80 rounded-2xl overflow-hidden shadow-xl border border-gray-200">
           <div className="bg-primary-900 text-white p-5 text-center">
             <p className="font-bold text-sm leading-tight">{evento.name}</p>
-            <p className="text-primary-200 text-xs mt-1">Iglesia de Dios — Ministerio Nacional de Niños</p>
+            <p className="text-primary-200 text-xs mt-1">Iglesia de Dios — Directiva Infantil Nacional</p>
             <div className="mt-3">
               <span className="text-xs font-bold px-4 py-1.5 rounded-full"
                 style={{ background: colores.bg, color: colores.text, border: `1px solid ${colores.border}` }}>
@@ -145,7 +152,7 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
 
           <div className="bg-white p-6 text-center">
             <div className="flex justify-center mb-4">
-              <div className="p-3 border-2 border-gray-200 rounded-xl bg-white inline-block">
+              <div id="qr-print" className="p-3 border-2 border-gray-200 rounded-xl bg-white inline-block">
                 <QRCodeSVG value={qrData} size={140} />
               </div>
             </div>
@@ -155,14 +162,14 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
             {p.district && <p className="text-gray-400 text-xs mt-1">{p.district}</p>}
             {p.region && <p className="text-gray-400 text-xs">{p.region}</p>}
             {grupoNombre && (
-           <div className="mt-2 inline-block bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
-            {grupoNombre}
-           </div>
+              <div className="mt-2 inline-block bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full">
+                {grupoNombre}
+              </div>
             )}
             {hospedajeNombre && (
-           <div className="mt-1 inline-block bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">
-            🏠 {hospedajeNombre}
-           </div>
+              <div className="mt-1 inline-block bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1 rounded-full">
+                🏠 {hospedajeNombre}
+              </div>
             )}
           </div>
 
