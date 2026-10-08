@@ -7,13 +7,14 @@ const EventContext = createContext(null);
 
 export function EventProvider({ children }) {
   const [eventos, setEventos] = useState([]);
-  const { getMinisterio } = useAuth();
+  const { getMinisterio, userData } = useAuth();
   const [eventoActivo, setEventoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
   const inicializado = useRef(false);
 
+const ministerio = userData ? (getMinisterio ? getMinisterio() : null) : null;
+
   useEffect(() => {
-    const ministerio = getMinisterio ? getMinisterio() : null;
     const q = ministerio
       ? query(collection(db, 'events'), where('ministerio', '==', ministerio), orderBy('startDate', 'desc'))
       : query(collection(db, 'events'), orderBy('startDate', 'desc'));
@@ -65,7 +66,7 @@ export function EventProvider({ children }) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [ministerio, userData]);
 
   const seleccionarEvento = (eventoId) => {
     const evento = eventos.find((e) => e.id === eventoId);

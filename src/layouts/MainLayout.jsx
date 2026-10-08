@@ -60,10 +60,11 @@ export default function MainLayout() {
   const { eventos, eventoActivo, seleccionarEvento } = useEvent();
   const navigate = useNavigate();
 
-  const menuFiltrado = MENU_ITEMS.filter(item => {
+const menuFiltrado = MENU_ITEMS.filter(item => {
     if (!item.roles) return true;
     if (item.roles.includes(userData?.rol)) return true;
     if (isNacional()) return true;
+    if (item.roles.includes('nacional') && isAdminNacional()) return true;
     return false;
   });
 
