@@ -1,17 +1,22 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { useAuth } from './AuthContext';
 
 const EventContext = createContext(null);
 
 export function EventProvider({ children }) {
   const [eventos, setEventos] = useState([]);
+  const { getMinisterio } = useAuth();
   const [eventoActivo, setEventoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
   const inicializado = useRef(false);
 
   useEffect(() => {
-    const q = query(collection(db, 'events'), orderBy('startDate', 'desc'));
+    const ministerio = getMinisterio ? getMinisterio() : null;
+    const q = ministerio
+      ? query(collection(db, 'events'), where('ministerio', '==', ministerio), orderBy('startDate', 'desc'))
+      : query(collection(db, 'events'), orderBy('startDate', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const lista = snapshot.docs.map((doc) => ({

@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react';
+const MINISTERIOS = [
+  { value: 'infantil', label: 'Directiva Infantil Nacional' },
+  { value: 'juvenil',  label: 'Directiva Juvenil Nacional' },
+];
 
 const ESTADOS = [
   { value: 'Draft',     label: 'Borrador' },
@@ -16,6 +20,7 @@ export default function FormEvento({ evento, onGuardar, onCancelar }) {
     location: '',
     registrationFee: '',
     maxCapacity: '',
+    ministerio: 'infantil',
     status: 'Draft',
   });
   const [errores, setErrores] = useState({});
@@ -31,6 +36,7 @@ export default function FormEvento({ evento, onGuardar, onCancelar }) {
         location: evento.location || '',
         registrationFee: evento.registrationFee || '',
         maxCapacity: evento.maxCapacity || '',
+        ministerio: evento.ministerio || 'infantil',
         status: evento.status || 'Draft',
       });
     }
@@ -72,6 +78,7 @@ export default function FormEvento({ evento, onGuardar, onCancelar }) {
       location: form.location.trim(),
       registrationFee: form.registrationFee ? Number(form.registrationFee) : 0,
       maxCapacity: form.maxCapacity ? Number(form.maxCapacity) : 0,
+      ministerio: form.ministerio,
       status: form.status,
     });
     setGuardando(false);
@@ -106,7 +113,7 @@ export default function FormEvento({ evento, onGuardar, onCancelar }) {
               name="name"
               value={form.name}
               onChange={cambiar}
-              placeholder="Ej: Convención Nacional de Niños 2026"
+              placeholder="Ej: Convención Infantil Nacional 2026"
               className={`w-full px-4 py-2.5 rounded-lg border ${errores.name ? 'border-red-400' : 'border-gray-300'} focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition`}
             />
             {errores.name && <p className="text-red-500 text-xs mt-1">{errores.name}</p>}
@@ -193,6 +200,15 @@ export default function FormEvento({ evento, onGuardar, onCancelar }) {
               {errores.maxCapacity && <p className="text-red-500 text-xs mt-1">{errores.maxCapacity}</p>}
             </div>
           </div>
+          <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Ministerio <span className="text-red-500">*</span></label>
+        <select name="ministerio" value={form.ministerio} onChange={cambiar}
+        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition bg-white">
+         {MINISTERIOS.map(m => (
+        <option key={m.value} value={m.value}>{m.label}</option>
+         ))}
+        </select>
+        </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>

@@ -11,7 +11,11 @@ const AuthContext = createContext(null);
 
 export const ROLES = {
   NACIONAL: 'nacional',
+  NACIONAL_INFANTIL: 'nacional_infantil',
+  NACIONAL_JUVENIL: 'nacional_juvenil',
   DISTRITAL: 'distrital',
+  DISTRITAL_INFANTIL: 'distrital_infantil',
+  DISTRITAL_JUVENIL: 'distrital_juvenil',
   VIEWER: 'viewer'
 };
 
@@ -86,8 +90,29 @@ export function AuthProvider({ children }) {
     return signOut(auth);
   };
 
-  const isNacional = () => userData?.rol === ROLES.NACIONAL;
-  const isDistrital = () => userData?.rol === ROLES.DISTRITAL;
+ const isNacional = () => userData?.rol === ROLES.NACIONAL;
+const isNacionalInfantil = () => userData?.rol === ROLES.NACIONAL_INFANTIL;
+const isNacionalJuvenil = () => userData?.rol === ROLES.NACIONAL_JUVENIL;
+const isDistrital = () => userData?.rol === ROLES.DISTRITAL_INFANTIL || userData?.rol === ROLES.DISTRITAL_JUVENIL || userData?.rol === ROLES.DISTRITAL;
+const isDistritalInfantil = () => userData?.rol === ROLES.DISTRITAL_INFANTIL || userData?.rol === ROLES.DISTRITAL;
+const isDistritalJuvenil = () => userData?.rol === ROLES.DISTRITAL_JUVENIL;
+
+const canAccessMinisterio = (ministerio) => {
+  if (isNacional()) return true;
+  if (!ministerio) return true;
+  if (userData?.rol === ROLES.NACIONAL_INFANTIL || userData?.rol === ROLES.DISTRITAL_INFANTIL || userData?.rol === ROLES.DISTRITAL) return ministerio === 'infantil';
+  if (userData?.rol === ROLES.NACIONAL_JUVENIL || userData?.rol === ROLES.DISTRITAL_JUVENIL) return ministerio === 'juvenil';
+  return false;
+};
+
+const getMinisterio = () => {
+  if (isNacional()) return null;
+  if (userData?.rol === ROLES.NACIONAL_INFANTIL || userData?.rol === ROLES.DISTRITAL_INFANTIL || userData?.rol === ROLES.DISTRITAL) return 'infantil';
+  if (userData?.rol === ROLES.NACIONAL_JUVENIL || userData?.rol === ROLES.DISTRITAL_JUVENIL) return 'juvenil';
+  return null;
+};
+
+const isAdminNacional = () => isNacional() || isNacionalInfantil() || isNacionalJuvenil();
   const isViewer = () => userData?.rol === ROLES.VIEWER;
 
   // Nacional puede editar todo
@@ -115,11 +140,18 @@ export function AuthProvider({ children }) {
     login,
     logout,
     isNacional,
+    isNacionalInfantil,
+    isNacionalJuvenil,
     isDistrital,
+    isDistritalInfantil,
+    isDistritalJuvenil,
+    isAdminNacional,
     isViewer,
     canEdit,
     canAccessModulo,
     canAccessDistrito,
+    canAccessMinisterio,
+    getMinisterio,
     MODULOS_DISTRITAL
   };
 
