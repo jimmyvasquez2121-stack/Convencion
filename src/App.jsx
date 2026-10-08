@@ -19,7 +19,7 @@ import Reportes from './features/reports/pages/Reportes';
 import Usuarios from './features/users/pages/Usuarios';
 
 function RutaInicio() {
-  const { isNacional, loading } = useAuth();
+  const { isNacional, isAdminNacional, loading } = useAuth();
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <svg className="animate-spin h-10 w-10 text-primary-800" viewBox="0 0 24 24" fill="none">
@@ -28,7 +28,7 @@ function RutaInicio() {
       </svg>
     </div>
   );
-  return isNacional() ? <Dashboard /> : <Navigate to="/participantes" replace />;
+  return isAdminNacional() ? <Dashboard /> : <Navigate to="/participantes" replace />;
 }
 export default function App() {
   return (
@@ -53,7 +53,7 @@ export default function App() {
               </Route>
             </Route>
 
-            <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
+            <Route element={<ProtectedRoute rolesPermitidos={['nacional', 'nacional_infantil', 'nacional_juvenil']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/eventos" element={<Eventos />} />
                 <Route path="/usuarios" element={<Usuarios />} />

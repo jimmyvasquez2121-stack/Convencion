@@ -56,13 +56,16 @@ function Icon({ name }) {
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
-  const { userData, logout } = useAuth();
+  const { userData, logout, isNacional, isAdminNacional, canAccessMinisterio } = useAuth();
   const { eventos, eventoActivo, seleccionarEvento } = useEvent();
   const navigate = useNavigate();
 
-  const menuFiltrado = MENU_ITEMS.filter(
-    (item) => !item.roles || item.roles.includes(userData?.rol)
-  );
+  const menuFiltrado = MENU_ITEMS.filter(item => {
+    if (!item.roles) return true;
+    if (item.roles.includes(userData?.rol)) return true;
+    if (isNacional()) return true;
+    return false;
+  });
 
   const handleLogout = async () => {
     const result = await Swal.fire({

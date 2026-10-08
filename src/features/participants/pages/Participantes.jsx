@@ -45,7 +45,7 @@ export default function Participantes() {
   const [participanteSeleccionado, setParticipanteSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit, isNacional, userData } = useAuth();
+  const { canEdit, isNacional, isAdminNacional, userData, getMinisterio } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) {
@@ -55,7 +55,7 @@ export default function Participantes() {
     }
 
     let q;
-    if (isNacional()) {
+    if (isAdminNacional()) {
       q = query(
         collection(db, 'participants'),
         where('eventId', '==', eventoActivo.id),

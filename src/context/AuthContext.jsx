@@ -117,7 +117,13 @@ const isAdminNacional = () => isNacional() || isNacionalInfantil() || isNacional
 
   // Nacional puede editar todo
   // Distrital puede editar solo sus módulos permitidos
-  const canEdit = () => userData?.rol === ROLES.NACIONAL || userData?.rol === ROLES.DISTRITAL;
+  const canEdit = () => 
+    userData?.rol === ROLES.NACIONAL || 
+    userData?.rol === ROLES.NACIONAL_INFANTIL || 
+    userData?.rol === ROLES.NACIONAL_JUVENIL ||
+    userData?.rol === ROLES.DISTRITAL ||
+    userData?.rol === ROLES.DISTRITAL_INFANTIL ||
+    userData?.rol === ROLES.DISTRITAL_JUVENIL;
 
   // ¿Puede acceder a un módulo específico?
   const canAccessModulo = (path) => {

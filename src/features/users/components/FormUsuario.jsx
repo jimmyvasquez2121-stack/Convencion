@@ -4,9 +4,15 @@ import { db } from '../../../firebase/config';
 import Swal from 'sweetalert2';
 
 export default function FormUsuario({ usuario, onCancelar, onGuardado }) {
-  const [form, setForm] = useState({
-    uid: '', nombre: '', email: '', rol: 'viewer',
-    region: '', distrito: '', activo: true,
+ const [form, setForm] = useState({
+    uid: '',
+    nombre: '',
+    email: '',
+    rol: 'viewer',
+    ministerio: 'infantil',
+    region: '',
+    distrito: '',
+    activo: true,
   });
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState({});
@@ -18,6 +24,7 @@ export default function FormUsuario({ usuario, onCancelar, onGuardado }) {
         nombre: usuario.nombre || '',
         email: usuario.email || '',
         rol: usuario.rol || 'viewer',
+        ministerio: usuario.ministerio || 'infantil',
         region: usuario.region || '',
         distrito: usuario.distrito || '',
         activo: usuario.activo !== false,
@@ -48,6 +55,7 @@ export default function FormUsuario({ usuario, onCancelar, onGuardado }) {
       const datos = {
         nombre: form.nombre.trim(), email: form.email.trim(),
         rol: form.rol, region: form.region.trim() || null,
+        ministerio: form.ministerio,
         distrito: form.distrito.trim() || null, activo: form.activo,
         updatedAt: serverTimestamp(),
       };
@@ -121,12 +129,22 @@ export default function FormUsuario({ usuario, onCancelar, onGuardado }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
             <select name="rol" value={form.rol} onChange={cambiar}
               className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition bg-white">
-              <option value="nacional">Administrador Nacional</option>
-              <option value="regional">Administrador Regional</option>
-              <option value="distrital">Administrador Distrital</option>
-              <option value="viewer">Visualizador</option>
+            <option value="nacional">Administrador Nacional (todo)</option>
+            <option value="nacional_infantil">Administrador Nacional Infantil</option>
+            <option value="nacional_juvenil">Administrador Nacional Juvenil</option>
+            <option value="distrital_infantil">Administrador Distrital Infantil</option>
+            <option value="distrital_juvenil">Administrador Distrital Juvenil</option>
+            <option value="viewer">Visualizador</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ministerio</label>
+            <select name="ministerio" value={form.ministerio} onChange={cambiar}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition bg-white">
+            <option value="infantil">Directiva Infantil Nacional</option>
+          <option value="juvenil">Directiva Juvenil Nacional</option>
+         </select>
+        </div>
 
           {necesitaRegion && (
             <div>

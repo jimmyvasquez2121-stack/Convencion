@@ -143,9 +143,11 @@ export default function Usuarios() {
                       ) : (
                         <select value={u.rol || ''} onChange={e => cambiarRol(u, e.target.value)}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-primary-500">
-                          <option value="nacional">Administrador Nacional</option>
-                          <option value="regional">Administrador Regional</option>
-                          <option value="distrital">Administrador Distrital</option>
+                          <option value="nacional">Admin Nacional (todo)</option>
+                          <option value="nacional_infantil">Admin Nacional Infantil</option>
+                          <option value="nacional_juvenil">Admin Nacional Juvenil</option>
+                          <option value="distrital_infantil">Admin Distrital Infantil</option>
+                          <option value="distrital_juvenil">Admin Distrital Juvenil</option>
                           <option value="viewer">Visualizador</option>
                         </select>
                       )}

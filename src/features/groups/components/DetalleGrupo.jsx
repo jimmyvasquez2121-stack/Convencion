@@ -17,7 +17,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
   const [memberCount, setMemberCount] = useState(grupo.memberCount || 0);
   const [miembroAReasignar, setMiembroAReasignar] = useState(null);
   const [todosGrupos, setTodosGrupos] = useState([]);
-  const { userData, canEdit,isNacional } = useAuth();
+  const { userData, isNacional, isAdminNacional } = useAuth();
 
   const color = colores.find(c => c.name === grupo.color) || colores[0];
 
@@ -185,7 +185,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
             </svg>
             Imprimir
           </button>
-          {isNacional() && (
+          {isAdminNacional() && (
             <button onClick={onEditar}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
         </div>
       </div>
 
-      {isNacional() && (
+      {isAdminNacional() && (
         <div className="mb-4">
           <button onClick={() => setShowBuscar(!showBuscar)}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
@@ -296,7 +296,7 @@ export default function DetalleGrupo({ grupo, evento, colores, onVolver, onEdita
         <p className="text-xs text-gray-400">#{m.registrationNumber} — {m.participantType}</p>
       </div>
     </div>
-    {isNacional() && (
+    {isAdminNacional() && (
       <div className="flex gap-1">
         <button onClick={() => iniciarReasignacion(m)}
           className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"

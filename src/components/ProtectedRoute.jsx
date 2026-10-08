@@ -1,6 +1,8 @@
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const ROLES_NACIONALES = ['nacional', 'nacional_infantil', 'nacional_juvenil'];
+
 export default function ProtectedRoute({ rolesPermitidos }) {
   const { user, userData, loading } = useAuth();
   const location = useLocation();
@@ -38,16 +40,21 @@ export default function ProtectedRoute({ rolesPermitidos }) {
     );
   }
 
-  if (rolesPermitidos && !rolesPermitidos.includes(userData.rol)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <div className="text-center max-w-md">
-          <div className="text-5xl mb-4">🚫</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Acceso restringido</h2>
-          <p className="text-gray-500">No tienes permisos para ver esta sección.</p>
+  if (rolesPermitidos) {
+    const tieneAcceso = rolesPermitidos.includes(userData.rol) || 
+      (rolesPermitidos.includes('nacional') && userData.rol === 'nacional');
+    
+    if (!tieneAcceso) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="text-center max-w-md">
+            <div className="text-5xl mb-4">🚫</div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Acceso restringido</h2>
+            <p className="text-gray-500">No tienes permisos para ver esta sección.</p>
+          </div>
         </div>
-      </div>
-    );
+      );
+    }
   }
 
   return <Outlet />;

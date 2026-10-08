@@ -26,7 +26,7 @@ export default function Pagos() {
   const [tabActiva, setTabActiva] = useState('participantes');
 
   const { eventoActivo } = useEvent();
-  const { canEdit, isNacional, userData } = useAuth();
+  const { canEdit, isNacional, isAdminNacional, userData, getMinisterio } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) {
@@ -35,7 +35,7 @@ export default function Pagos() {
       return;
     }
     let q;
-    if (isNacional()) {
+   if (isAdminNacional()) {
       q = query(
         collection(db, 'participants'),
         where('eventId', '==', eventoActivo.id),

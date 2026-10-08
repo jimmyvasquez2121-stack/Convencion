@@ -25,7 +25,7 @@ export default function Hospedaje() {
   const [lugarSeleccionado, setLugarSeleccionado] = useState(null);
 
   const { eventoActivo } = useEvent();
-  const { canEdit, isNacional } = useAuth();
+  const { canEdit, isNacional, isAdminNacional } = useAuth();
 
   useEffect(() => {
     if (!eventoActivo) { setLugares([]); setLoading(false); return; }
@@ -114,7 +114,7 @@ export default function Hospedaje() {
           <h1 className="text-2xl font-bold text-gray-800">Hospedaje</h1>
           <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name}</p>
         </div>
-        {isNacional() && (
+        {isAdminNacional() && (
           <button onClick={() => { setLugarSeleccionado(null); setVista('form'); }}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,7 +203,7 @@ export default function Hospedaje() {
                     className="flex-1 text-xs font-medium py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 transition">
                     Ver asignaciones
                   </button>
-                  {isNacional() && (
+                  {isAdminNacional() && (
                     <>
                       <button onClick={() => { setLugarSeleccionado(lugar); setVista('form'); }}
                         className="p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition">
