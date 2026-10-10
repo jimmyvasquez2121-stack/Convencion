@@ -32,7 +32,9 @@ export default function DetallePago({ participante, evento, onVolver }) {
   const [estadoActual, setEstadoActual] = useState(participante?.paymentStatus || 'pending');
   const { userData, canEdit } = useAuth();
 
-  const cuota = evento?.registrationFee || 0;
+  const cuota = participante.participantType === 'Niño' 
+    ? (eventoActivo?.registrationFeeNinos || 0)
+    : (eventoActivo?.registrationFeeAdultos || 0);
   const saldo = cuota - montoActual;
 
   useEffect(() => {

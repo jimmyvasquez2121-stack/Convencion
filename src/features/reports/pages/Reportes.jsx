@@ -42,7 +42,7 @@ export default function Reportes() {
     const data = [
       ['#', 'Registro', 'Nombre', 'Iglesia', 'Distrito', 'Estado', 'Monto Pagado', 'Saldo'],
       ...participantes.map((p, i) => {
-        const saldo = (eventoActivo.registrationFee || 0) - (p.amountPaid || 0);
+        const saldo = (p.participantType === 'Niño' ? (eventoActivo.registrationFeeNinos || 0) : (eventoActivo.registrationFeeAdultos || 0)) - (p.amountPaid || 0);
         return [
           i + 1, p.registrationNumber, p.fullName, p.church, p.district,
           p.paymentStatus === 'paid' ? 'Pagado' : p.paymentStatus === 'partial' ? 'Parcial' : 'Pendiente',
@@ -78,7 +78,12 @@ export default function Reportes() {
   const exportarPDFPagos = () => {
     const doc = new jsPDF();
     const totalRecaudado = participantes.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
-    const totalEsperado = participantes.length * (eventoActivo.registrationFee || 0);
+    const totalEsperado = participantes.reduce((sum, p) => {
+    const cuota = p.participantType === 'Niño'
+      ? (eventoActivo.registrationFeeNinos || 0)
+      : (eventoActivo.registrationFeeAdultos || 0);
+    return sum + cuota;
+  }, 0);
     doc.setFontSize(16);
     doc.text(eventoActivo.name, 14, 20);
     doc.setFontSize(11);
@@ -88,7 +93,7 @@ export default function Reportes() {
       startY: 42,
       head: [['#', 'Nombre', 'Iglesia', 'Estado', 'Pagado', 'Saldo']],
       body: participantes.map((p, i) => {
-        const saldo = (eventoActivo.registrationFee || 0) - (p.amountPaid || 0);
+        const saldo = (p.participantType === 'Niño' ? (eventoActivo.registrationFeeNinos || 0) : (eventoActivo.registrationFeeAdultos || 0)) - (p.amountPaid || 0);
         return [
           i + 1, p.fullName, p.church,
           p.paymentStatus === 'paid' ? 'Pagado' : p.paymentStatus === 'partial' ? 'Parcial' : 'Pendiente',

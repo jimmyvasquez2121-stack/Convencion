@@ -57,7 +57,12 @@ export default function Dashboard() {
   const totalAdultos = totalParticipantes - totalNinos;
   const totalCheckins = checkins.length;
   const totalRecaudado = participantes.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
-  const totalEsperado = totalParticipantes * (eventoActivo.registrationFee || 0);
+  const totalEsperado = participantes.reduce((sum, p) => {
+    const cuota = p.participantType === 'Niño'
+      ? (eventoActivo.registrationFeeNinos || 0)
+      : (eventoActivo.registrationFeeAdultos || 0);
+    return sum + cuota;
+  }, 0);
   const saldoPendiente = totalEsperado - totalRecaudado;
   const pagados = participantes.filter(p => p.paymentStatus === 'paid').length;
   const parciales = participantes.filter(p => p.paymentStatus === 'partial').length;
