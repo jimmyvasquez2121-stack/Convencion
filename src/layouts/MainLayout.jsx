@@ -61,10 +61,15 @@ export default function MainLayout() {
   const navigate = useNavigate();
 
 const menuFiltrado = MENU_ITEMS.filter(item => {
+    if (isNacional()) return true;
+    if (isAdminNacional()) {
+      if (!item.roles) return true;
+      if (item.roles.includes(userData?.rol)) return true;
+      if (item.roles.includes('nacional')) return true;
+      return false;
+    }
     if (!item.roles) return true;
     if (item.roles.includes(userData?.rol)) return true;
-    if (isNacional()) return true;
-    if (item.roles.includes('nacional') && isAdminNacional()) return true;
     return false;
   });
 
