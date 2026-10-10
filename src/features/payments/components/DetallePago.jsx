@@ -35,7 +35,9 @@ export default function DetallePago({ participante, evento, onVolver }) {
  const cuota = participante.participantType === 'Niño' 
     ? (evento?.registrationFeeNinos || 0)
     : (evento?.registrationFeeAdultos || 0);
-    
+
+    const saldo = cuota - montoActual;
+
   useEffect(() => {
     const q = query(
       collection(db, 'payments'),
