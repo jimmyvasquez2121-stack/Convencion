@@ -32,11 +32,10 @@ export default function DetallePago({ participante, evento, onVolver }) {
   const [estadoActual, setEstadoActual] = useState(participante?.paymentStatus || 'pending');
   const { userData, canEdit } = useAuth();
 
-  const cuota = participante.participantType === 'Niño' 
-    ? (eventoActivo?.registrationFeeNinos || 0)
-    : (eventoActivo?.registrationFeeAdultos || 0);
-  const saldo = cuota - montoActual;
-
+ const cuota = participante.participantType === 'Niño' 
+    ? (evento?.registrationFeeNinos || 0)
+    : (evento?.registrationFeeAdultos || 0);
+    
   useEffect(() => {
     const q = query(
       collection(db, 'payments'),
