@@ -10,6 +10,7 @@ const TIPO_COLORS = {
   'Pastor':         { bg: '#fef9c3', text: '#a16207', border: '#fde047' },
   'Padre/Madre':    { bg: '#ffedd5', text: '#c2410c', border: '#fdba74' },
   'Voluntario':     { bg: '#fce7f3', text: '#be185d', border: '#f9a8d4' },
+  'Joven':          { bg: '#ccfbf1', text: '#0f766e', border: '#5eead4' },
   'Invitado':       { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
   'Staff':          { bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc' },
 };

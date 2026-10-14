@@ -13,6 +13,7 @@ const TIPO_COLORS = {
   'Pastor':         'bg-yellow-100 text-yellow-700',
   'Padre/Madre':    'bg-orange-100 text-orange-700',
   'Voluntario':     'bg-pink-100 text-pink-700',
+  'Joven':          'bg-teal-100 text-teal-700',
   'Invitado':       'bg-gray-100 text-gray-700',
   'Staff':          'bg-blue-100 text-blue-700',
 };

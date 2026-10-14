@@ -68,8 +68,11 @@ const menuFiltrado = MENU_ITEMS.filter(item => {
       if (item.roles.includes('nacional')) return true;
       return false;
     }
+    // Distritales
     if (!item.roles) return true;
     if (item.roles.includes(userData?.rol)) return true;
+    if (item.roles.includes('distrital') && 
+        (userData?.rol === 'distrital_infantil' || userData?.rol === 'distrital_juvenil')) return true;
     return false;
   });
 
