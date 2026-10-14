@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   collection, addDoc, updateDoc, deleteDoc,
-  doc, onSnapshot, orderBy, query, serverTimestamp
+  doc, onSnapshot, orderBy, query, serverTimestamp, where
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useAuth } from '../../../context/AuthContext';
@@ -20,10 +20,13 @@ export default function Eventos() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [eventoEditando, setEventoEditando] = useState(null);
-  const { userData } = useAuth();
+  const { userData, isNacional, getMinisterio } = useAuth();
 
   useEffect(() => {
-    const q = query(collection(db, 'events'), orderBy('startDate', 'desc'));
+    const ministerio = getMinisterio ? getMinisterio() : null;
+    const q = ministerio
+      ? query(collection(db, 'events'), where('ministerio', '==', ministerio), orderBy('startDate', 'desc'))
+      : query(collection(db, 'events'), orderBy('startDate', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       setEventos(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);

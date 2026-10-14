@@ -56,6 +56,10 @@ export default function App() {
             <Route element={<ProtectedRoute rolesPermitidos={['nacional', 'nacional_infantil', 'nacional_juvenil']} />}>
               <Route element={<MainLayout />}>
                 <Route path="/eventos" element={<Eventos />} />
+              </Route>
+            </Route>
+            <Route element={<ProtectedRoute rolesPermitidos={['nacional']} />}>
+              <Route element={<MainLayout />}>
                 <Route path="/usuarios" element={<Usuarios />} />
               </Route>
             </Route>

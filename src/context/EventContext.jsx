@@ -11,8 +11,19 @@ export function EventProvider({ children }) {
   const [eventoActivo, setEventoActivo] = useState(null);
   const [loading, setLoading] = useState(true);
   const inicializado = useRef(false);
+  const ministerioAnterior = useRef(null)
 
 const ministerio = userData ? (getMinisterio ? getMinisterio() : null) : null;
+
+
+  useEffect(() => {
+    if (ministerioAnterior.current !== ministerio && userData) {
+      ministerioAnterior.current = ministerio;
+      inicializado.current = false;
+      setEventoActivo(null);
+      try { localStorage.removeItem('eventoActivoId'); } catch(e) {}
+    }
+  }, [ministerio, userData]);
 
   useEffect(() => {
     const q = ministerio
