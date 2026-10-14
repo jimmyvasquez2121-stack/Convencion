@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 
 const TALLAS_NINOS = ['2', '4', '6', '8', '10', '12', '14', '16'];
 const TALLAS_ADULTOS = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const TIPOS = ['Niño', 'Maestro', 'Líder de Niños', 'Pastor', 'Padre/Madre', 'Voluntario', 'Staff', 'Invitado'];
+const TIPOS = ['Niño', 'Joven', 'Maestro', 'Líder de Niños', 'Pastor', 'Padre/Madre', 'Voluntario', 'Staff', 'Invitado'];
 
 const calcularEdad = (fechaNacimiento) => {
   if (!fechaNacimiento) return '';

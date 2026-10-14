@@ -104,7 +104,7 @@ const menuFiltrado = MENU_ITEMS.filter(item => {
         </div>
           <div className="min-w-0">
             <p className="font-bold text-sm leading-tight">Convención Nacional</p>
-            <p className="text-primary-300 text-xs leading-tight">de Niños</p>
+            <p className="text-primary-300 text-xs leading-tight">Iglesia de Dios</p>
           </div>
         </div>
 

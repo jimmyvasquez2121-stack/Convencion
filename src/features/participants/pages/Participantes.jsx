@@ -18,6 +18,7 @@ const TIPO_COLORS = {
   'Padre/Madre':    'bg-orange-100 text-orange-700',
   'Voluntario':     'bg-pink-100 text-pink-700',
   'Staff':          'bg-indigo-100 text-indigo-700',
+  'Joven':          'bg-teal-100 text-teal-700',
   'Invitado':       'bg-gray-100 text-gray-700',
 };
 

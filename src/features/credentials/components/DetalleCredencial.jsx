@@ -141,7 +141,9 @@ export default function DetalleCredencial({ participante: p, evento, onVolver })
         <div ref={credencialRef} className="w-80 rounded-2xl overflow-hidden shadow-xl border border-gray-200">
           <div className="bg-primary-900 text-white p-5 text-center">
             <p className="font-bold text-sm leading-tight">{evento.name}</p>
-            <p className="text-primary-200 text-xs mt-1">Iglesia de Dios — Directiva Infantil Nacional</p>
+            <p className="text-primary-200 text-xs mt-1">
+             {evento?.ministerio === 'juvenil' ? 'Iglesia de Dios — Directiva Juvenil Nacional' : 'Iglesia de Dios — Directiva Infantil Nacional'}
+            </p>
             <div className="mt-3">
               <span className="text-xs font-bold px-4 py-1.5 rounded-full"
                 style={{ background: colores.bg, color: colores.text, border: `1px solid ${colores.border}` }}>
