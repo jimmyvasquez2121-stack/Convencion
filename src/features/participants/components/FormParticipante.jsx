@@ -362,8 +362,15 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
 
   const esEdicion = participante && participante.id;
 
+  const eventoLocked = evento?.status === 'Closed' || evento?.status === 'Completed';
+
   return (
     <div>
+      {eventoLocked && !esEdicion && (
+  <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+    <p className="text-red-700 font-semibold text-sm">⚠️ Este evento está {evento?.status === 'Closed' ? 'cerrado' : 'completado'}. No se pueden registrar nuevos participantes.</p>
+  </div>
+     )}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={onCancelar} className="text-gray-400 hover:text-gray-600 transition">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -403,7 +410,7 @@ export default function FormParticipante({ participante, evento, onCancelar, onG
         )}
 
         <div className="flex gap-3 pt-2">
-          <button type="submit" disabled={guardando}
+          <button type="submit" disabled={guardando || (eventoLocked && !esEdicion)}
             className="flex-1 bg-primary-800 hover:bg-primary-900 text-white font-semibold py-3 rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2">
             {guardando ? (
               <>
