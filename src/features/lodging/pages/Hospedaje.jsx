@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   collection, query, where, onSnapshot,
-  addDoc, updateDoc, deleteDoc, doc, serverTimestamp
+  addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
@@ -23,6 +23,7 @@ export default function Hospedaje() {
   const [loading, setLoading] = useState(true);
   const [vista, setVista] = useState('lista');
   const [lugarSeleccionado, setLugarSeleccionado] = useState(null);
+  const [imprimiendo, setImprimiendo] = useState(false);
 
   const { eventoActivo } = useEvent();
   const { canEdit, isNacional, isAdminNacional } = useAuth();
@@ -72,6 +73,106 @@ export default function Hospedaje() {
     }
   };
 
+  const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const imprimirTodos = async () => {
+    if (lugares.length === 0) return;
+    setImprimiendo(true);
+    try {
+      const snap = await getDocs(query(collection(db, 'lodgingAssignments'), where('eventId', '==', eventoActivo.id)));
+      const todas = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const lugaresOrdenados = [...lugares].sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '', 'es', { numeric: true })
+      );
+
+      const hojas = lugaresOrdenados
+        .map(lugar => {
+          const asignadas = todas
+            .filter(a => a.lodgingId === lugar.id)
+            .sort((a, b) => (a.participantName || '').localeCompare(b.participantName || '', 'es'));
+          return { lugar, asignadas };
+        })
+        .filter(h => h.asignadas.length > 0);
+
+      if (hojas.length === 0) {
+        Swal.fire({ icon: 'info', title: 'Nada que imprimir', text: 'Todavía no hay participantes asignados a ningún lugar.', confirmButtonColor: '#1e3a8a' });
+        return;
+      }
+
+      const fecha = new Date().toLocaleDateString('es');
+      const html = hojas.map(({ lugar, asignadas }) => `
+        <div class="ph-hoja">
+          <div class="ph-header">
+            <div class="ph-evento">${esc(eventoActivo?.name)}</div>
+            <div class="ph-lugar">${esc(lugar.name)}</div>
+            <div class="ph-sub">${esc(lugar.type)} — ${asignadas.length} de ${esc(lugar.capacity)} lugares ocupados</div>
+          </div>
+          <table>
+            <thead><tr><th>#</th><th>Nombre</th><th style="text-align:right">Registro</th></tr></thead>
+            <tbody>
+              ${asignadas.map((a, i) => `
+                <tr>
+                  <td class="num">${i + 1}</td>
+                  <td>${esc(a.participantName)}</td>
+                  <td class="reg">#${esc(a.registrationNumber)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="ph-pie">Impreso el ${fecha}</div>
+        </div>
+      `).join('');
+
+      // Limpiar restos de una impresión anterior
+      document.getElementById('print-area')?.remove();
+      document.getElementById('print-area-style')?.remove();
+
+      const estilo = document.createElement('style');
+      estilo.id = 'print-area-style';
+      estilo.textContent = `
+        #print-area { display: none; }
+        @media print {
+          body > *:not(#print-area) { display: none !important; }
+          #print-area { display: block !important; background: white; }
+          @page { margin: 15mm; }
+          #print-area .ph-hoja { page-break-after: always; break-after: page; }
+          #print-area .ph-hoja:last-child { page-break-after: auto; break-after: auto; }
+        }
+        #print-area, #print-area * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        #print-area { font-family: Arial, sans-serif; color: #1f2937; }
+        #print-area .ph-header { background: #1e3a8a; color: white; padding: 14px 18px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
+        #print-area .ph-evento { font-size: 13px; opacity: 0.85; }
+        #print-area .ph-lugar { font-size: 28px; font-weight: bold; margin-top: 4px; }
+        #print-area .ph-sub { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+        #print-area table { width: 100%; border-collapse: collapse; font-size: 16px; }
+        #print-area th { background: #f3f4f6; text-align: left; padding: 8px; border-bottom: 2px solid #d1d5db; }
+        #print-area td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+        #print-area .num { width: 40px; color: #6b7280; }
+        #print-area .reg { width: 90px; color: #6b7280; text-align: right; }
+        #print-area .ph-pie { margin-top: 12px; font-size: 11px; color: #9ca3af; text-align: right; }
+      `;
+      document.head.appendChild(estilo);
+
+      const area = document.createElement('div');
+      area.id = 'print-area';
+      area.innerHTML = html;
+      document.body.appendChild(area);
+
+      const limpiar = () => {
+        area.remove();
+        estilo.remove();
+        window.removeEventListener('afterprint', limpiar);
+      };
+      window.addEventListener('afterprint', limpiar);
+      setTimeout(() => window.print(), 150);
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    } finally {
+      setImprimiendo(false);
+    }
+  };
+
   const totalCapacidad = lugares.reduce((sum, l) => sum + (l.capacity || 0), 0);
   const totalOcupados = lugares.reduce((sum, l) => sum + (l.occupiedSpaces || 0), 0);
   const totalDisponibles = totalCapacidad - totalOcupados;
@@ -114,15 +215,26 @@ export default function Hospedaje() {
           <h1 className="text-2xl font-bold text-gray-800">Hospedaje</h1>
           <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name}</p>
         </div>
-        {isAdminNacional() && (
-          <button onClick={() => { setLugarSeleccionado(null); setVista('form'); }}
-            className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nuevo Lugar
-          </button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {lugares.length > 0 && (
+            <button onClick={imprimirTodos} disabled={imprimiendo}
+              className="flex items-center gap-2 border border-primary-300 text-primary-700 hover:bg-primary-50 px-4 py-2.5 rounded-lg font-medium transition disabled:opacity-60">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+              </svg>
+              {imprimiendo ? 'Preparando...' : 'Imprimir todos'}
+            </button>
+          )}
+          {isAdminNacional() && (
+            <button onClick={() => { setLugarSeleccionado(null); setVista('form'); }}
+              className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Nuevo Lugar
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
