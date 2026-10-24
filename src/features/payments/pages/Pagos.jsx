@@ -56,6 +56,11 @@ export default function Pagos() {
     return unsub;
   }, [eventoActivo]);
 
+  // Cuota según el tipo: Niño paga la cuota de niños, los demás la de adultos
+  const cuotaNinos = eventoActivo?.registrationFeeNinos ?? eventoActivo?.registrationFee ?? 0;
+  const cuotaAdultos = eventoActivo?.registrationFeeAdultos ?? eventoActivo?.registrationFee ?? 0;
+  const cuotaDe = (p) => (p.participantType === 'Niño' ? cuotaNinos : cuotaAdultos);
+
   const filtrados = participantes.filter(p => {
     const texto = busqueda.toLowerCase();
     const coincideTexto = !busqueda ||
@@ -66,8 +71,7 @@ export default function Pagos() {
     return coincideTexto && coincideEstado;
   });
 
-  const totalCuota = eventoActivo?.registrationFee || 0;
-  const totalEsperado = participantes.length * totalCuota;
+  const totalEsperado = participantes.reduce((sum, p) => sum + cuotaDe(p), 0);
   const totalRecaudado = participantes.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
   const totalPendiente = totalEsperado - totalRecaudado;
   const pagados = participantes.filter(p => p.paymentStatus === 'paid').length;
@@ -92,8 +96,6 @@ export default function Pagos() {
       </div>
     );
   }
-
-
 
   return (
     <div>
@@ -133,8 +135,9 @@ export default function Pagos() {
           <p className="text-2xl font-bold text-gray-800">${totalEsperado.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Cuota por persona</p>
-          <p className="text-2xl font-bold text-primary-800">${totalCuota.toLocaleString()}</p>
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Cuotas</p>
+          <p className="text-sm font-bold text-primary-800">Niños: ${cuotaNinos.toLocaleString()}</p>
+          <p className="text-sm font-bold text-primary-800">Adultos: ${cuotaAdultos.toLocaleString()}</p>
         </div>
       </div>
 
@@ -202,7 +205,7 @@ export default function Pagos() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtrados.map(p => {
-                  const saldo = totalCuota - (p.amountPaid || 0);
+                  const saldo = cuotaDe(p) - (p.amountPaid || 0);
                   return (
                     <tr key={p.id} className="hover:bg-gray-50 transition">
                       <td className="px-4 py-3 font-mono text-gray-500 text-xs">{p.registrationNumber}</td>
