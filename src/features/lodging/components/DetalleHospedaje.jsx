@@ -7,22 +7,39 @@ import { db } from '../../../firebase/config';
 import { useAuth } from '../../../context/AuthContext';
 import Swal from 'sweetalert2';
 
-const imprimirListado = () => {
+export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [participantes, setParticipantes] = useState([]);
+  const [grupoFamiliar, setGrupoFamiliar] = useState([]);
+  const [cargandoGrupo, setCargandoGrupo] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState('');
+  const [showBuscar, setShowBuscar] = useState(false);
+  const [asignando, setAsignando] = useState(false);
+  const [ocupados, setOcupados] = useState(lugar.occupiedSpaces || 0);
+  const { userData, canEdit, isNacional, isAdminNacional } = useAuth();
+
+  const disponibles = (lugar.capacity || 0) - ocupados;
+
+  const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const imprimirListado = () => {
     const ordenados = [...asignaciones].sort((a, b) =>
       (a.participantName || '').localeCompare(b.participantName || '', 'es')
     );
     const filas = ordenados.map((a, i) => `
       <tr>
         <td class="num">${i + 1}</td>
-        <td>${a.participantName || ''}</td>
-        <td class="reg">#${a.registrationNumber ?? ''}</td>
+        <td>${esc(a.participantName)}</td>
+        <td class="reg">#${esc(a.registrationNumber)}</td>
       </tr>
     `).join('');
 
     const contenido = `
       <html>
       <head>
-        <title>Hospedaje - ${lugar.name}</title>
+        <meta charset="utf-8" />
+        <title>Hospedaje - ${esc(lugar.name)}</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           @page { size: A4; margin: 15mm; }
@@ -42,9 +59,9 @@ const imprimirListado = () => {
       </head>
       <body>
         <div class="header">
-          <div class="evento">${evento.name}</div>
-          <h1>${lugar.name}</h1>
-          <div class="sub">${lugar.type || ''} — ${ordenados.length} de ${lugar.capacity} lugares ocupados</div>
+          <div class="evento">${esc(evento?.name)}</div>
+          <h1>${esc(lugar.name)}</h1>
+          <div class="sub">${esc(lugar.type)} — ${ordenados.length} de ${esc(lugar.capacity)} lugares ocupados</div>
         </div>
         ${ordenados.length === 0
           ? '<div class="vacio">Sin participantes asignados</div>'
@@ -56,25 +73,21 @@ const imprimirListado = () => {
       </body>
       </html>
     `;
-    const ventana = window.open('', '_blank');
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ventana.print();
+
+    // Se imprime desde un marco oculto en la misma página (no lo bloquea la tablet)
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const d = iframe.contentWindow.document;
+    d.open();
+    d.write(contenido);
+    d.close();
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => iframe.remove(), 3000);
+    }, 400);
   };
-
-export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
-  const [asignaciones, setAsignaciones] = useState([]);
-  const [participantes, setParticipantes] = useState([]);
-  const [grupoFamiliar, setGrupoFamiliar] = useState([]);
-  const [cargandoGrupo, setCargandoGrupo] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [busqueda, setBusqueda] = useState('');
-  const [showBuscar, setShowBuscar] = useState(false);
-  const [asignando, setAsignando] = useState(false);
-  const [ocupados, setOcupados] = useState(lugar.occupiedSpaces || 0);
-  const { userData, canEdit, isNacional, isAdminNacional } = useAuth();
-
-  const disponibles = (lugar.capacity || 0) - ocupados;
 
   useEffect(() => {
     const q = query(collection(db, 'lodgingAssignments'), where('lodgingId', '==', lugar.id));
@@ -151,14 +164,14 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
         setCargandoGrupo(false);
       }
     }
-if (participante.hospedajeAsignado) {
-Swal.fire({ 
-icon: 'warning', 
-title: 'Ya tiene hospedaje', 
-text: `${participante.fullName} ya está asignado en "${participante.hospedajeAsignado}".`,
-confirmButtonColor: '#1e3a8a'
+    if (participante.hospedajeAsignado) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Ya tiene hospedaje',
+        text: `${participante.fullName} ya está asignado en "${participante.hospedajeAsignado}".`,
+        confirmButtonColor: '#1e3a8a'
       });
-return;
+      return;
     }
     setAsignando(true);
     try {
@@ -185,9 +198,9 @@ return;
   const asignarGrupoCompleto = async () => {
     if (!grupoFamiliar.principal) return;
     const todos = [grupoFamiliar.principal, ...grupoFamiliar.miembros];
-    
+
     const disponibles_count = todos.filter(p => !p.hospedajeAsignado && !asignaciones.find(a => a.participantId === p.id)).length;
-    
+
     if (disponibles_count === 0) {
       Swal.fire({ icon: 'info', title: 'Sin cambios', text: 'Todos los miembros del grupo ya tienen hospedaje asignado.', confirmButtonColor: '#1e3a8a' });
       return;
@@ -215,12 +228,12 @@ return;
       setGrupoFamiliar([]);
       setBusqueda('');
       setShowBuscar(false);
-      Swal.fire({ 
-        icon: 'success', 
+      Swal.fire({
+        icon: 'success',
         title: asignados > 0 ? `${asignados} participante(s) asignado(s)` : 'Sin cambios',
         text: asignados > 0 ? '' : 'Los miembros disponibles ya tienen hospedaje.',
-        timer: 1500, 
-        showConfirmButton: false 
+        timer: 1500,
+        showConfirmButton: false
       });
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
@@ -294,8 +307,8 @@ return;
         </div>
       </div>
 
-      {isAdminNacional() && disponibles > 0 && (
-        <div className="mb-4">
+      <div className="flex flex-wrap gap-2 mb-4">
+        {isAdminNacional() && disponibles > 0 && (
           <button onClick={() => setShowBuscar(!showBuscar)}
             className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,18 +316,15 @@ return;
             </svg>
             Asignar Participante
           </button>
-        </div>
-      )}
-
-      <div className="mb-4">
-  <button onClick={imprimirListado}
-    className="flex items-center gap-2 border border-primary-300 text-primary-700 hover:bg-primary-50 px-4 py-2.5 rounded-lg font-medium transition">
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-    </svg>
-    Imprimir listado
-  </button>
-</div>
+        )}
+        <button onClick={imprimirListado}
+          className="flex items-center gap-2 border border-primary-300 text-primary-700 hover:bg-primary-50 px-4 py-2.5 rounded-lg font-medium transition">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Imprimir listado
+        </button>
+      </div>
 
       {disponibles <= 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
@@ -337,12 +347,12 @@ return;
                     <p className="text-xs text-gray-400">{p.participantType} — #{p.registrationNumber}</p>
                   </div>
                   {p.hospedajeAsignado ? (
-              <span className="text-xs text-green-600 font-semibold">✅ {p.hospedajeAsignado}</span>
-            ) : yaAsig ? (
-              <span className="text-xs text-green-600 font-semibold">✅ Este lugar</span>
-            ) : (
-              <span className="text-xs text-gray-400">Sin hospedaje</span>
-            )}
+                    <span className="text-xs text-green-600 font-semibold">✅ {p.hospedajeAsignado}</span>
+                  ) : yaAsig ? (
+                    <span className="text-xs text-green-600 font-semibold">✅ Este lugar</span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Sin hospedaje</span>
+                  )}
                 </div>
               );
             })}
