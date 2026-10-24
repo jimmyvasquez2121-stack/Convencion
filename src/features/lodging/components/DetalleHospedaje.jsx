@@ -7,6 +7,61 @@ import { db } from '../../../firebase/config';
 import { useAuth } from '../../../context/AuthContext';
 import Swal from 'sweetalert2';
 
+const imprimirListado = () => {
+    const ordenados = [...asignaciones].sort((a, b) =>
+      (a.participantName || '').localeCompare(b.participantName || '', 'es')
+    );
+    const filas = ordenados.map((a, i) => `
+      <tr>
+        <td class="num">${i + 1}</td>
+        <td>${a.participantName || ''}</td>
+        <td class="reg">#${a.registrationNumber ?? ''}</td>
+      </tr>
+    `).join('');
+
+    const contenido = `
+      <html>
+      <head>
+        <title>Hospedaje - ${lugar.name}</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          @page { size: A4; margin: 15mm; }
+          body { font-family: Arial, sans-serif; color: #1f2937; }
+          .header { background: #1e3a8a !important; color: white; padding: 14px 18px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
+          .header .evento { font-size: 13px; opacity: 0.85; }
+          .header h1 { font-size: 28px; margin-top: 4px; }
+          .header .sub { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+          table { width: 100%; border-collapse: collapse; font-size: 16px; }
+          th { background: #f3f4f6 !important; text-align: left; padding: 8px; border-bottom: 2px solid #d1d5db; }
+          td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+          .num { width: 40px; color: #6b7280; }
+          .reg { width: 90px; color: #6b7280; text-align: right; }
+          .vacio { text-align: center; color: #9ca3af; padding: 30px; }
+          .pie { margin-top: 12px; font-size: 11px; color: #9ca3af; text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="evento">${evento.name}</div>
+          <h1>${lugar.name}</h1>
+          <div class="sub">${lugar.type || ''} — ${ordenados.length} de ${lugar.capacity} lugares ocupados</div>
+        </div>
+        ${ordenados.length === 0
+          ? '<div class="vacio">Sin participantes asignados</div>'
+          : `<table>
+              <thead><tr><th>#</th><th>Nombre</th><th style="text-align:right">Registro</th></tr></thead>
+              <tbody>${filas}</tbody>
+            </table>`}
+        <div class="pie">Impreso el ${new Date().toLocaleDateString('es')}</div>
+      </body>
+      </html>
+    `;
+    const ventana = window.open('', '_blank');
+    ventana.document.write(contenido);
+    ventana.document.close();
+    ventana.print();
+  };
+
 export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [participantes, setParticipantes] = useState([]);
@@ -250,6 +305,16 @@ return;
           </button>
         </div>
       )}
+
+      <div className="mb-4">
+  <button onClick={imprimirListado}
+    className="flex items-center gap-2 border border-primary-300 text-primary-700 hover:bg-primary-50 px-4 py-2.5 rounded-lg font-medium transition">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+    </svg>
+    Imprimir listado
+  </button>
+</div>
 
       {disponibles <= 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
