@@ -19,14 +19,14 @@ export default function AbonosDistritales() {
   const [nota, setNota] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  const { userData, isNacional, isDistrital } = useAuth();
+  const { userData, isAdminNacional, isDistrital } = useAuth();
   const { eventoActivo } = useEvent();
 
   useEffect(() => {
     if (!eventoActivo) { setAbonos([]); setLoading(false); return; }
 
     let q;
-    if (isNacional()) {
+    if (isAdminNacional()) {
       q = query(
         collection(db, 'abonosDistritales'),
         where('eventId', '==', eventoActivo.id),
@@ -116,7 +116,7 @@ export default function AbonosDistritales() {
       </div>
 
       {/* Total general para nacional */}
-      {isNacional() && (
+      {isAdminNacional() && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
           <p className="text-xs text-green-600 font-semibold uppercase tracking-wide mb-1">Total Recibido de Distritos</p>
           <p className="text-3xl font-bold text-green-700">${totalGeneral.toLocaleString()}</p>
@@ -184,7 +184,7 @@ export default function AbonosDistritales() {
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
           <p className="text-gray-400 text-sm">No hay abonos registrados todavía</p>
         </div>
-      ) : isNacional() ? (
+      ) : isAdminNacional() ? (
         // Vista nacional: agrupado por distrito
         <div className="space-y-4">
           {Object.entries(porDistrito).map(([distrito, datos]) => (
