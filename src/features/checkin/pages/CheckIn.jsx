@@ -12,6 +12,8 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 const PAYMENT_LABELS = { pending: 'Pendiente', partial: 'Parcial', paid: 'Pagado' };
 const PAYMENT_COLORS = { pending: 'text-red-600', partial: 'text-yellow-600', paid: 'text-green-600' };
 
+const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 export default function CheckIn() {
   const [checkins, setCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -93,22 +95,83 @@ export default function CheckIn() {
       Swal.fire({ icon: 'info', title: 'Ya registrado', text: `${participante.fullName} ya hizo check-in anteriormente.`, confirmButtonColor: '#1e3a8a' });
       return;
     }
+
+    // Datos frescos del participante para calcular el saldo real
+    let actual = participante;
+    try {
+      const snapActual = await getDoc(doc(db, 'participants', participante.id));
+      if (snapActual.exists()) actual = { id: snapActual.id, ...snapActual.data() };
+    } catch (error) {
+      console.error(error);
+    }
+
+    if (actual.checkedIn) {
+      Swal.fire({ icon: 'info', title: 'Ya registrado', text: `${actual.fullName} ya hizo check-in anteriormente.`, confirmButtonColor: '#1e3a8a' });
+      return;
+    }
+
+    // Saldo según el tipo: Niño paga cuota de niños, los demás cuota de adultos
+    const cuotaNinos = eventoActivo?.registrationFeeNinos ?? eventoActivo?.registrationFee ?? 0;
+    const cuotaAdultos = eventoActivo?.registrationFeeAdultos ?? eventoActivo?.registrationFee ?? 0;
+    const cuota = actual.participantType === 'Niño' ? cuotaNinos : cuotaAdultos;
+    const pagado = actual.amountPaid || 0;
+    const saldo = Math.max(cuota - pagado, 0);
+
+    if (saldo > 0) {
+      const decision = await Swal.fire({
+        icon: 'warning',
+        title: 'Pago incompleto',
+        html: `
+          <b>${esc(actual.fullName)}</b><br>
+          Registro #${esc(actual.registrationNumber)} — ${esc(actual.participantType)}<br><br>
+          Cuota: $${cuota} &nbsp;|&nbsp; Pagado: $${pagado}<br>
+          <span style="color:#dc2626;font-size:1.4em;font-weight:bold;">Debe: $${saldo}</span>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '✅ Aprobar check-in',
+        cancelButtonText: '❌ Rechazar',
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#dc2626',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        reverseButtons: true
+      });
+      if (!decision.isConfirmed) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Check-in rechazado',
+          text: `${actual.fullName} no fue registrado. Debe $${saldo}.`,
+          timer: 2500,
+          showConfirmButton: false
+        });
+        return;
+      }
+    }
+
     setProcesando(true);
     try {
-      await updateDoc(doc(db, 'participants', participante.id), {
+      await updateDoc(doc(db, 'participants', actual.id), {
         checkedIn: true, checkedInAt: serverTimestamp(), checkedInBy: userData.uid
       });
       await addDoc(collection(db, 'checkins'), {
-        participantId: participante.id, participantName: participante.fullName,
-        registrationNumber: participante.registrationNumber, participantType: participante.participantType,
-        church: participante.church, district: participante.district,
+        participantId: actual.id, participantName: actual.fullName,
+        registrationNumber: actual.registrationNumber, participantType: actual.participantType,
+        church: actual.church, district: actual.district,
         eventId: eventoActivo.id, checkedInAt: serverTimestamp(),
-        checkedInBy: userData.uid, checkedInByName: userData.nombre || userData.email
+        checkedInBy: userData.uid, checkedInByName: userData.nombre || userData.email,
+        pagoIncompleto: saldo > 0,
+        saldoPendiente: saldo
       });
-      setParticipanteDetalle({ ...participante, checkedIn: true });
+      setParticipanteDetalle({ ...actual, checkedIn: true });
       setBusqueda('');
       setResultados([]);
-      Swal.fire({ icon: 'success', title: '✅ Check-In Exitoso', html: `<b>${participante.fullName}</b><br>Registro #${participante.registrationNumber}`, timer: 2000, showConfirmButton: false });
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Check-In Exitoso',
+        html: `<b>${esc(actual.fullName)}</b><br>Registro #${esc(actual.registrationNumber)}${saldo > 0 ? `<br><span style="color:#ca8a04;">Aprobado con saldo pendiente: $${saldo}</span>` : ''}`,
+        timer: 2000,
+        showConfirmButton: false
+      });
     } catch (error) {
       Swal.fire({ icon: 'error', title: 'Error', text: error.message });
     } finally {
@@ -343,6 +406,9 @@ export default function CheckIn() {
                   <div className="text-right">
                     <p className="text-xs font-semibold text-green-600">✅ {formatFecha(c.checkedInAt)}</p>
                     <p className="text-xs text-gray-400">{c.checkedInByName}</p>
+                    {c.saldoPendiente > 0 && (
+                      <p className="text-xs font-semibold text-yellow-600">Entró debiendo ${c.saldoPendiente}</p>
+                    )}
                   </div>
                 </div>
               ))}
