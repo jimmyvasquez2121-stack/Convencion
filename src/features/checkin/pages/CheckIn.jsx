@@ -14,6 +14,27 @@ const PAYMENT_COLORS = { pending: 'text-red-600', partial: 'text-yellow-600', pa
 
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// Extrae el id del participante del texto del QR.
+// Tolera lectores que escriben con teclado en español (cambian { " : } por ¨ [ Ñ *)
+const extraerId = (texto) => {
+  const crudo = String(texto || '').trim();
+  try {
+    const d = JSON.parse(crudo);
+    if (d?.id) return String(d.id);
+  } catch (e) {}
+  const corregido = crudo
+    .replace(/¨/g, '{')
+    .replace(/\[/g, '"')
+    .replace(/[Ññ]/g, ':')
+    .replace(/\*/g, '}');
+  try {
+    const d = JSON.parse(corregido);
+    if (d?.id) return String(d.id);
+  } catch (e) {}
+  const m = crudo.match(/id[^A-Za-z0-9]{1,6}([A-Za-z0-9]{20})/);
+  return m ? m[1] : null;
+};
+
 export default function CheckIn() {
   const [checkins, setCheckins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +49,15 @@ export default function CheckIn() {
 
   const { eventoActivo } = useEvent();
   const { userData } = useAuth();
+
+  // Devuelve el cursor al campo del lector QR
+  const enfocarQR = () => {
+    setTimeout(() => qrInputRef.current?.focus(), 150);
+  };
+
+  useEffect(() => {
+    enfocarQR();
+  }, []);
 
   useEffect(() => {
     if (!eventoActivo) { setCheckins([]); setLoading(false); return; }
@@ -181,9 +211,9 @@ export default function CheckIn() {
 
   const procesarQR = async (qrText) => {
     try {
-      const datos = JSON.parse(qrText);
-      if (!datos.id) throw new Error('QR inválido');
-      const participanteDoc = await getDoc(doc(db, 'participants', datos.id));
+      const idParticipante = extraerId(qrText);
+      if (!idParticipante) throw new Error('QR inválido');
+      const participanteDoc = await getDoc(doc(db, 'participants', idParticipante));
       if (!participanteDoc.exists()) {
         Swal.fire({ icon: 'error', title: 'No encontrado', text: 'El QR no corresponde a ningún participante.', confirmButtonColor: '#1e3a8a' });
         return;
@@ -200,9 +230,13 @@ export default function CheckIn() {
     }
   };
 
-  const handleQrSubmit = (e) => {
+  const handleQrSubmit = async (e) => {
     e.preventDefault();
-    if (qrInput.trim()) { procesarQR(qrInput.trim()); setQrInput(''); }
+    const texto = qrInput.trim();
+    if (!texto) return;
+    setQrInput('');
+    await procesarQR(texto);
+    enfocarQR();
   };
 
   const formatFecha = (timestamp) => {

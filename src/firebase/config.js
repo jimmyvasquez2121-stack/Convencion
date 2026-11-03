@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -15,7 +15,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Firestore con memoria offline: los datos se guardan en el dispositivo
+// y los cambios hechos sin internet se suben solos al volver la conexión.
+let firestore;
+try {
+  firestore = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+} catch (error) {
+  console.error('No se pudo activar la memoria offline, se usa modo normal:', error);
+  firestore = getFirestore(app);
+}
+export const db = firestore;
+
 export const storage = getStorage(app);
 
 setPersistence(auth, browserLocalPersistence);
