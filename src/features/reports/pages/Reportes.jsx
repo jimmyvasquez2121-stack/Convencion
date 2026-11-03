@@ -57,6 +57,7 @@ export default function Reportes() {
 
   const totalRecaudado = lista.reduce((s, p) => s + (p.amountPaid || 0), 0);
   const totalEsperado = lista.reduce((s, p) => s + cuotaDe(p), 0);
+  const totalPendiente = totalEsperado - totalRecaudado;
 
   const exportarExcelGeneral = () => {
     const wb = XLSX.utils.book_new();
@@ -122,7 +123,10 @@ export default function Reportes() {
     doc.setFontSize(11);
     doc.text('Reporte de Pagos', 14, 28);
     doc.text(`Distrito: ${etiquetaDistrito}`, 14, 35);
-    doc.text(`Recaudado: $${totalRecaudado.toLocaleString()} / Esperado: $${totalEsperado.toLocaleString()}`, 14, 42);
+    doc.text(
+      `Recaudado: $${totalRecaudado.toLocaleString()} / Esperado: $${totalEsperado.toLocaleString()} / Pendiente: $${totalPendiente.toLocaleString()}`,
+      14, 42
+    );
     doc.autoTable({
       startY: 49,
       head: [['#', 'Nombre', 'Tipo', 'Iglesia', 'Estado', 'Pagado', 'Saldo']],
@@ -231,7 +235,7 @@ export default function Reportes() {
       <div className="mt-6 bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="font-semibold text-gray-700 mb-1">Resumen del Evento</h2>
         <p className="text-xs text-gray-400 mb-4">{etiquetaDistrito}</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <p className="text-gray-400 text-xs uppercase font-semibold">Total</p>
             <p className="text-2xl font-bold text-primary-800 mt-1">{lista.length}</p>
@@ -241,12 +245,20 @@ export default function Reportes() {
             <p className="text-2xl font-bold text-green-600 mt-1">{lista.filter(p => p.paymentStatus === 'paid').length}</p>
           </div>
           <div>
-            <p className="text-gray-400 text-xs uppercase font-semibold">Recaudado</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">${totalRecaudado.toLocaleString()}</p>
-          </div>
-          <div>
             <p className="text-gray-400 text-xs uppercase font-semibold">Check-In</p>
             <p className="text-2xl font-bold text-gray-800 mt-1">{lista.filter(p => p.checkedIn).length}</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-semibold">Total Esperado</p>
+            <p className="text-2xl font-bold text-gray-800 mt-1">${totalEsperado.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-semibold">Recaudado</p>
+            <p className="text-2xl font-bold text-green-600 mt-1">${totalRecaudado.toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-xs uppercase font-semibold">Saldo Pendiente</p>
+            <p className="text-2xl font-bold text-red-600 mt-1">${totalPendiente.toLocaleString()}</p>
           </div>
         </div>
       </div>
