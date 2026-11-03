@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   collection, query, where, onSnapshot, orderBy,
-  doc, updateDoc, addDoc, serverTimestamp, getDoc, getDocs
+  doc, updateDoc, addDoc, serverTimestamp, getDoc, getDocs,
+  getDocFromCache, getDocsFromCache
 } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
@@ -13,6 +14,29 @@ const PAYMENT_LABELS = { pending: 'Pendiente', partial: 'Parcial', paid: 'Pagado
 const PAYMENT_COLORS = { pending: 'text-red-600', partial: 'text-yellow-600', paid: 'text-green-600' };
 
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Espera una promesa, pero se rinde si tarda demasiado (sin internet)
+const conTimeout = (promesa, ms) =>
+  Promise.race([
+    promesa,
+    new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('timeout')), ms))
+  ]);
+
+// Lee de internet; si no hay conexión, lee de los datos guardados en el dispositivo
+const leerDoc = async (ref) => {
+  try {
+    return await conTimeout(getDoc(ref), 2500);
+  } catch (e) {
+    return await getDocFromCache(ref);
+  }
+};
+const leerDocs = async (q) => {
+  try {
+    return await conTimeout(getDocs(q), 4000);
+  } catch (e) {
+    return await getDocsFromCache(q);
+  }
+};
 
 // Extrae el id del participante del texto del QR.
 // Tolera lectores que escriben con teclado en español (cambian { " : } por ¨ [ Ñ *)
@@ -45,6 +69,8 @@ export default function CheckIn() {
   const [procesando, setProcesando] = useState(false);
   const [qrInput, setQrInput] = useState('');
   const [mostrarCamara, setMostrarCamara] = useState(false);
+  const [enLinea, setEnLinea] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [datosListos, setDatosListos] = useState(null);
   const qrInputRef = useRef(null);
 
   const { eventoActivo } = useEvent();
@@ -59,6 +85,29 @@ export default function CheckIn() {
     enfocarQR();
   }, []);
 
+  // Aviso de conexión
+  useEffect(() => {
+    const conectar = () => setEnLinea(true);
+    const desconectar = () => setEnLinea(false);
+    window.addEventListener('online', conectar);
+    window.addEventListener('offline', desconectar);
+    return () => {
+      window.removeEventListener('online', conectar);
+      window.removeEventListener('offline', desconectar);
+    };
+  }, []);
+
+  // Descarga los participantes del evento para poder trabajar sin internet
+  useEffect(() => {
+    if (!eventoActivo) { setDatosListos(null); return; }
+    let cancelado = false;
+    const q = query(collection(db, 'participants'), where('eventId', '==', eventoActivo.id));
+    leerDocs(q)
+      .then(snap => { if (!cancelado) setDatosListos(snap.size); })
+      .catch(() => { if (!cancelado) setDatosListos(null); });
+    return () => { cancelado = true; };
+  }, [eventoActivo]);
+
   useEffect(() => {
     if (!eventoActivo) { setCheckins([]); setLoading(false); return; }
     const q = query(
@@ -67,7 +116,7 @@ export default function CheckIn() {
       orderBy('checkedInAt', 'desc')
     );
     const unsub = onSnapshot(q, (snap) => {
-      setCheckins(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setCheckins(snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })));
       setLoading(false);
     });
     return unsub;
@@ -79,7 +128,7 @@ export default function CheckIn() {
       setBuscando(true);
       try {
         const q = query(collection(db, 'participants'), where('eventId', '==', eventoActivo.id), orderBy('registrationNumber', 'asc'));
-        const snap = await getDocs(q);
+        const snap = await leerDocs(q);
         const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const texto = busqueda.toLowerCase();
         const filtrados = todos.filter(p =>
@@ -129,7 +178,7 @@ export default function CheckIn() {
     // Datos frescos del participante para calcular el saldo real
     let actual = participante;
     try {
-      const snapActual = await getDoc(doc(db, 'participants', participante.id));
+      const snapActual = await leerDoc(doc(db, 'participants', participante.id));
       if (snapActual.exists()) actual = { id: snapActual.id, ...snapActual.data() };
     } catch (error) {
       console.error(error);
@@ -180,26 +229,43 @@ export default function CheckIn() {
 
     setProcesando(true);
     try {
-      await updateDoc(doc(db, 'participants', actual.id), {
-        checkedIn: true, checkedInAt: serverTimestamp(), checkedInBy: userData.uid
-      });
-      await addDoc(collection(db, 'checkins'), {
-        participantId: actual.id, participantName: actual.fullName,
-        registrationNumber: actual.registrationNumber, participantType: actual.participantType,
-        church: actual.church, district: actual.district,
-        eventId: eventoActivo.id, checkedInAt: serverTimestamp(),
-        checkedInBy: userData.uid, checkedInByName: userData.nombre || userData.email,
-        pagoIncompleto: saldo > 0,
-        saldoPendiente: saldo
-      });
+      // Sin internet, Firebase guarda el cambio en el dispositivo y lo sube después.
+      // Por eso no esperamos más de 3 segundos la respuesta del servidor.
+      const escrituras = Promise.all([
+        updateDoc(doc(db, 'participants', actual.id), {
+          checkedIn: true, checkedInAt: serverTimestamp(), checkedInBy: userData.uid
+        }),
+        addDoc(collection(db, 'checkins'), {
+          participantId: actual.id, participantName: actual.fullName,
+          registrationNumber: actual.registrationNumber, participantType: actual.participantType,
+          church: actual.church, district: actual.district,
+          eventId: eventoActivo.id, checkedInAt: serverTimestamp(),
+          checkedInBy: userData.uid, checkedInByName: userData.nombre || userData.email,
+          pagoIncompleto: saldo > 0,
+          saldoPendiente: saldo
+        })
+      ]);
+
+      let pendienteDeSubir = false;
+      try {
+        await conTimeout(escrituras, 3000);
+      } catch (e) {
+        if (e.message === 'timeout') {
+          pendienteDeSubir = true;
+          escrituras.catch(err => console.error(err));
+        } else {
+          throw e;
+        }
+      }
+
       setParticipanteDetalle({ ...actual, checkedIn: true });
       setBusqueda('');
       setResultados([]);
       Swal.fire({
         icon: 'success',
         title: '✅ Check-In Exitoso',
-        html: `<b>${esc(actual.fullName)}</b><br>Registro #${esc(actual.registrationNumber)}${saldo > 0 ? `<br><span style="color:#ca8a04;">Aprobado con saldo pendiente: $${saldo}</span>` : ''}`,
-        timer: 2000,
+        html: `<b>${esc(actual.fullName)}</b><br>Registro #${esc(actual.registrationNumber)}${saldo > 0 ? `<br><span style="color:#ca8a04;">Aprobado con saldo pendiente: $${saldo}</span>` : ''}${pendienteDeSubir ? `<br><span style="color:#2563eb;">Guardado en este dispositivo. Se sincronizará cuando haya internet.</span>` : ''}`,
+        timer: pendienteDeSubir ? 2800 : 2000,
         showConfirmButton: false
       });
     } catch (error) {
@@ -213,7 +279,7 @@ export default function CheckIn() {
     try {
       const idParticipante = extraerId(qrText);
       if (!idParticipante) throw new Error('QR inválido');
-      const participanteDoc = await getDoc(doc(db, 'participants', idParticipante));
+      const participanteDoc = await leerDoc(doc(db, 'participants', idParticipante));
       if (!participanteDoc.exists()) {
         Swal.fire({ icon: 'error', title: 'No encontrado', text: 'El QR no corresponde a ningún participante.', confirmButtonColor: '#1e3a8a' });
         return;
@@ -226,6 +292,15 @@ export default function CheckIn() {
       setParticipanteDetalle(participante);
       await procesarCheckin(participante);
     } catch (error) {
+      if (error?.code === 'unavailable') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Sin datos guardados',
+          text: 'No hay conexión y este participante no está guardado en el dispositivo. Abre la app con internet para descargar los datos.',
+          confirmButtonColor: '#1e3a8a'
+        });
+        return;
+      }
       Swal.fire({ icon: 'error', title: 'QR inválido', text: 'No se pudo leer el código QR.', confirmButtonColor: '#1e3a8a' });
     }
   };
@@ -262,10 +337,21 @@ export default function CheckIn() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Check-In</h1>
         <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name}</p>
       </div>
+
+      {!enLinea && (
+        <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl p-3 mb-4 text-sm">
+          📴 Sin conexión. Los check-ins se guardan en este dispositivo y se sincronizarán al volver el internet.
+        </div>
+      )}
+      {datosListos !== null && (
+        <p className="text-xs text-gray-400 mb-4">
+          ✅ Datos guardados en este dispositivo: {datosListos} participantes (listo para usar sin conexión)
+        </p>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         <div className="bg-white rounded-xl border border-gray-200 p-4 text-center">
