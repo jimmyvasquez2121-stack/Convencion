@@ -7,6 +7,13 @@ import { db } from '../../../firebase/config';
 import { useAuth } from '../../../context/AuthContext';
 import Swal from 'sweetalert2';
 
+// Hora en que se hizo la asignación (para ordenar por orden de asignación)
+const aMillis = (a) => {
+  if (a.assignedAt?.toMillis) return a.assignedAt.toMillis();
+  if (a.assignedAt?.seconds) return a.assignedAt.seconds * 1000;
+  return Infinity;
+};
+
 export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) {
   const [asignaciones, setAsignaciones] = useState([]);
   const [participantes, setParticipantes] = useState([]);
@@ -21,12 +28,16 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
 
   const disponibles = (lugar.capacity || 0) - ocupados;
 
+  // Asignaciones en el orden en que se fueron asignando
+  const asignacionesOrdenadas = [...asignaciones].sort((a, b) =>
+    (aMillis(a) - aMillis(b)) ||
+    (a.participantName || '').localeCompare(b.participantName || '', 'es')
+  );
+
   const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
   const imprimirListado = () => {
-    const ordenados = [...asignaciones].sort((a, b) =>
-      (a.participantName || '').localeCompare(b.participantName || '', 'es')
-    );
+    const ordenados = asignacionesOrdenadas;
     const filas = ordenados.map((a, i) => `
       <tr>
         <td class="num">${i + 1}</td>
@@ -35,64 +46,66 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
       </tr>
     `).join('');
 
-    const contenido = `
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Hospedaje - ${esc(lugar.name)}</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-          @page { size: A4; margin: 15mm; }
-          body { font-family: Arial, sans-serif; color: #1f2937; }
-          .header { background: #1e3a8a !important; color: white; padding: 14px 18px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
-          .header .evento { font-size: 13px; opacity: 0.85; }
-          .header h1 { font-size: 28px; margin-top: 4px; }
-          .header .sub { font-size: 13px; margin-top: 4px; opacity: 0.9; }
-          table { width: 100%; border-collapse: collapse; font-size: 16px; }
-          th { background: #f3f4f6 !important; text-align: left; padding: 8px; border-bottom: 2px solid #d1d5db; }
-          td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
-          .num { width: 40px; color: #6b7280; }
-          .reg { width: 90px; color: #6b7280; text-align: right; }
-          .vacio { text-align: center; color: #9ca3af; padding: 30px; }
-          .pie { margin-top: 12px; font-size: 11px; color: #9ca3af; text-align: right; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="evento">${esc(evento?.name)}</div>
-          <h1>${esc(lugar.name)}</h1>
-          <div class="sub">${esc(lugar.type)} — ${ordenados.length} de ${esc(lugar.capacity)} lugares ocupados</div>
-        </div>
-        ${ordenados.length === 0
-          ? '<div class="vacio">Sin participantes asignados</div>'
-          : `<table>
-              <thead><tr><th>#</th><th>Nombre</th><th style="text-align:right">Registro</th></tr></thead>
-              <tbody>${filas}</tbody>
-            </table>`}
-        <div class="pie">Impreso el ${new Date().toLocaleDateString('es')}</div>
-      </body>
-      </html>
-    `;
+    // Limpiar restos de una impresión anterior
+    document.getElementById('print-area')?.remove();
+    document.getElementById('print-area-style')?.remove();
 
-    // Se imprime desde un marco oculto en la misma página (no lo bloquea la tablet)
-    const iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-    document.body.appendChild(iframe);
-    const d = iframe.contentWindow.document;
-    d.open();
-    d.write(contenido);
-    d.close();
-    setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => iframe.remove(), 3000);
-    }, 400);
+    const estilo = document.createElement('style');
+    estilo.id = 'print-area-style';
+    estilo.textContent = `
+      #print-area { display: none; }
+      @media print {
+        body > *:not(#print-area) { display: none !important; }
+        #print-area { display: block !important; background: white; }
+        @page { margin: 15mm; }
+      }
+      #print-area, #print-area * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #print-area { font-family: Arial, sans-serif; color: #1f2937; }
+      #print-area .ph-header { background: #1e3a8a; color: white; padding: 14px 18px; border-radius: 8px; text-align: center; margin-bottom: 14px; }
+      #print-area .ph-evento { font-size: 13px; opacity: 0.85; }
+      #print-area .ph-lugar { font-size: 28px; font-weight: bold; margin-top: 4px; }
+      #print-area .ph-sub { font-size: 13px; margin-top: 4px; opacity: 0.9; }
+      #print-area table { width: 100%; border-collapse: collapse; font-size: 16px; }
+      #print-area th { background: #f3f4f6; text-align: left; padding: 8px; border-bottom: 2px solid #d1d5db; }
+      #print-area td { padding: 8px; border-bottom: 1px solid #e5e7eb; }
+      #print-area .num { width: 40px; color: #6b7280; }
+      #print-area .reg { width: 90px; color: #6b7280; text-align: right; }
+      #print-area .ph-vacio { text-align: center; color: #9ca3af; padding: 30px; }
+      #print-area .ph-pie { margin-top: 12px; font-size: 11px; color: #9ca3af; text-align: right; }
+    `;
+    document.head.appendChild(estilo);
+
+    const area = document.createElement('div');
+    area.id = 'print-area';
+    area.innerHTML = `
+      <div class="ph-header">
+        <div class="ph-evento">${esc(evento?.name)}</div>
+        <div class="ph-lugar">${esc(lugar.name)}</div>
+        <div class="ph-sub">${esc(lugar.type)} — ${ordenados.length} de ${esc(lugar.capacity)} lugares ocupados</div>
+      </div>
+      ${ordenados.length === 0
+        ? '<div class="ph-vacio">Sin participantes asignados</div>'
+        : `<table>
+            <thead><tr><th>#</th><th>Nombre</th><th style="text-align:right">Registro</th></tr></thead>
+            <tbody>${filas}</tbody>
+          </table>`}
+      <div class="ph-pie">Impreso el ${new Date().toLocaleDateString('es')}</div>
+    `;
+    document.body.appendChild(area);
+
+    const limpiar = () => {
+      area.remove();
+      estilo.remove();
+      window.removeEventListener('afterprint', limpiar);
+    };
+    window.addEventListener('afterprint', limpiar);
+    setTimeout(() => window.print(), 150);
   };
 
   useEffect(() => {
     const q = query(collection(db, 'lodgingAssignments'), where('lodgingId', '==', lugar.id));
     const unsub = onSnapshot(q, (snap) => {
-      setAsignaciones(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setAsignaciones(snap.docs.map(d => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) })));
       setLoading(false);
     });
     return unsub;
@@ -420,7 +433,7 @@ export default function DetalleHospedaje({ lugar, evento, onVolver, onEditar }) 
           <p className="text-center text-gray-400 text-sm py-4">No hay participantes asignados todavía</p>
         ) : (
           <div className="space-y-2">
-            {asignaciones.map(a => (
+            {asignacionesOrdenadas.map(a => (
               <div key={a.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="font-medium text-gray-800 text-sm">{a.participantName}</p>

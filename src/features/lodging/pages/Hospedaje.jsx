@@ -18,6 +18,13 @@ const TIPO_ICONS = {
   'Área de Camping': '🌲',
 };
 
+// Hora en que se hizo la asignación (para ordenar por orden de asignación)
+const aMillis = (a) => {
+  if (a.assignedAt?.toMillis) return a.assignedAt.toMillis();
+  if (a.assignedAt?.seconds) return a.assignedAt.seconds * 1000;
+  return Infinity;
+};
+
 export default function Hospedaje() {
   const [lugares, setLugares] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -88,9 +95,13 @@ export default function Hospedaje() {
 
       const hojas = lugaresOrdenados
         .map(lugar => {
+          // Participantes en el orden en que se fueron asignando
           const asignadas = todas
             .filter(a => a.lodgingId === lugar.id)
-            .sort((a, b) => (a.participantName || '').localeCompare(b.participantName || '', 'es'));
+            .sort((a, b) =>
+              (aMillis(a) - aMillis(b)) ||
+              (a.participantName || '').localeCompare(b.participantName || '', 'es')
+            );
           return { lugar, asignadas };
         })
         .filter(h => h.asignadas.length > 0);
