@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
 import { useAuth } from '../../../context/AuthContext';
 import DetalleCredencial from '../components/DetalleCredencial';
 import { QRCodeSVG } from 'qrcode.react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import Swal from 'sweetalert2';
 
 const TIPO_COLORS = {
   'Niño':           'bg-blue-100 text-blue-700',
@@ -18,12 +20,29 @@ const TIPO_COLORS = {
   'Staff':          'bg-blue-100 text-blue-700',
 };
 
+// Colores de la etiqueta del tipo en la credencial impresa
+const COLORES_IMPRESION = {
+  'Niño':           { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
+  'Maestro':        { bg: '#f3e8ff', text: '#7c3aed', border: '#c4b5fd' },
+  'Líder de Niños': { bg: '#dcfce7', text: '#15803d', border: '#86efac' },
+  'Pastor':         { bg: '#fef9c3', text: '#a16207', border: '#fde047' },
+  'Padre/Madre':    { bg: '#ffedd5', text: '#c2410c', border: '#fdba74' },
+  'Voluntario':     { bg: '#fce7f3', text: '#be185d', border: '#f9a8d4' },
+  'Joven':          { bg: '#ccfbf1', text: '#0f766e', border: '#5eead4' },
+  'Staff':          { bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc' },
+  'Invitado':       { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
+};
+
+const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 export default function Credenciales() {
   const [participantes, setParticipantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtroDistrito, setFiltroDistrito] = useState('');
   const [participanteSeleccionado, setParticipanteSeleccionado] = useState(null);
+  const [imprimiendo, setImprimiendo] = useState(false);
   const { eventoActivo } = useEvent();
   const { isNacional, isAdminNacional, userData } = useAuth();
 
@@ -53,6 +72,10 @@ export default function Credenciales() {
     return unsub;
   }, [eventoActivo, userData]);
 
+  // Distritos que tienen participantes en este evento (para el selector)
+  const distritosDisponibles = [...new Set(participantes.map(p => p.district).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+
   const filtrados = participantes.filter(p => {
     const texto = busqueda.toLowerCase();
     const coincideTexto = !busqueda ||
@@ -60,7 +83,8 @@ export default function Credenciales() {
       p.registrationNumber?.toString().includes(texto) ||
       p.church?.toLowerCase().includes(texto);
     const coincideTipo = !filtroTipo || p.participantType === filtroTipo;
-    return coincideTexto && coincideTipo;
+    const coincideDistrito = !filtroDistrito || p.district === filtroDistrito;
+    return coincideTexto && coincideTipo && coincideDistrito;
   });
 
   if (!eventoActivo) {
@@ -82,90 +106,174 @@ export default function Credenciales() {
     );
   }
 
-  const imprimirTodas = () => {
-    const credencialesHTML = filtrados.map(p => {
-      const colores = {
-        'Niño':           { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' },
-        'Maestro':        { bg: '#f3e8ff', text: '#7c3aed', border: '#c4b5fd' },
-        'Líder de Niños': { bg: '#dcfce7', text: '#15803d', border: '#86efac' },
-        'Pastor':         { bg: '#fef9c3', text: '#a16207', border: '#fde047' },
-        'Padre/Madre':    { bg: '#ffedd5', text: '#c2410c', border: '#fdba74' },
-        'Voluntario':     { bg: '#fce7f3', text: '#be185d', border: '#f9a8d4' },
-        'Staff':          { bg: '#e0f2fe', text: '#0369a1', border: '#7dd3fc' },
-        'Invitado':       { bg: '#f3f4f6', text: '#374151', border: '#d1d5db' },
-      };
-      const color = colores[p.participantType] || colores['Invitado'];
-      return `
-        <div class="credencial">
-          <div class="header">
-            <div class="evento">${eventoActivo.name}</div>
-            <div class="subtitulo">Iglesia de Dios</div>
-            <div class="tipo-badge" style="background:${color.bg};color:${color.text};border:1px solid ${color.border}">${p.participantType}</div>
-          </div>
-          <div class="body">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(JSON.stringify({id:p.id,reg:p.registrationNumber,name:p.fullName,event:eventoActivo.id}))}" 
-              width="90" height="90" style="border-radius:4px;margin:0 auto 4px;display:block;" />
-            <div class="nombre">${p.fullName}</div>
-            <div class="reg">Registro #${p.registrationNumber}</div>
-            ${p.church ? `<div class="info">${p.church}</div>` : ''}
-            ${p.district ? `<div class="info distrito">${p.district}</div>` : ''}
-          </div>
-          <div class="footer">Credencial válida únicamente para este evento</div>
-        </div>
-      `;
-    }).join('');
+  // Busca el grupo y el hospedaje de cada participante
+  const cargarGruposYHospedaje = async (lista) => {
+    const grupoPorParticipante = {};
+    const hospedajePorParticipante = {};
 
-    const contenido = `
-      <html>
-      <head>
-        <title>Credenciales - ${eventoActivo.name}</title>
-        <style>
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; margin: 0; padding: 0; }
-          @page { size: A4; margin: 10mm; }
-          body { font-family: Arial, sans-serif; background: white; }
-          .contenedor { display: flex; flex-wrap: wrap; gap: 5mm; justify-content: flex-start; }
-          .credencial { width: 54mm; height: 85mm; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; page-break-inside: avoid; }
-          .header { background: #1e3a8a !important; color: white; padding: 6px 8px; text-align: center; }
-          .evento { font-size: 7px; font-weight: bold; line-height: 1.2; }
-          .subtitulo { font-size: 5.5px; opacity: 0.8; margin-top: 2px; }
-          .tipo-badge { margin: 3px auto 0; display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 6px; font-weight: bold; }
-          .body { flex: 1; padding: 5px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-          .qr-placeholder { width: 75px; height: 75px; border: 1px solid #e5e7eb; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 6px; color: #9ca3af; margin: 0 auto 4px; }
-          .nombre { font-size: 8px; font-weight: bold; color: #1f2937; margin: 2px 0 1px; line-height: 1.2; }
-          .reg { font-size: 6px; color: #6b7280; margin-bottom: 1px; }
-          .info { font-size: 6px; color: #374151; }
-          .distrito { color: #6b7280; }
-          .footer { background: #f9fafb !important; border-top: 1px solid #e5e7eb; padding: 3px; text-align: center; font-size: 5px; color: #9ca3af; }
-        </style>
-      </head>
-      <body>
-        <div class="contenedor">
-          ${credencialesHTML}
-        </div>
-      </body>
-      </html>
-    `;
+    // Hospedaje
+    try {
+      const snapHosp = await getDocs(
+        query(collection(db, 'lodgingAssignments'), where('eventId', '==', eventoActivo.id))
+      );
+      snapHosp.docs.forEach(d => {
+        const a = d.data();
+        if (a.participantId && a.lodgingName) hospedajePorParticipante[a.participantId] = a.lodgingName;
+      });
+    } catch (error) {
+      console.error('No se pudo leer el hospedaje:', error);
+    }
 
-    const ventana = window.open('', '_blank');
-    ventana.document.write(contenido);
-    ventana.document.close();
-    ventana.print();
+    // Grupos
+    try {
+      const nombresGrupos = {};
+      try {
+        const snapGrupos = await getDocs(
+          query(collection(db, 'groups'), where('eventId', '==', eventoActivo.id))
+        );
+        snapGrupos.docs.forEach(d => { nombresGrupos[d.id] = d.data().name; });
+      } catch (error) {
+        console.error('No se pudieron leer los grupos:', error);
+      }
+
+      const ids = lista.map(p => p.id);
+      const lotes = [];
+      for (let i = 0; i < ids.length; i += 30) lotes.push(ids.slice(i, i + 30));
+      const respuestas = await Promise.all(
+        lotes.map(lote => getDocs(query(collection(db, 'groupMembers'), where('participantId', 'in', lote))))
+      );
+      respuestas.forEach(snap => {
+        snap.docs.forEach(d => {
+          const m = d.data();
+          const nombre = m.groupName || m.grupoNombre || nombresGrupos[m.groupId];
+          if (m.participantId && nombre) grupoPorParticipante[m.participantId] = nombre;
+        });
+      });
+    } catch (error) {
+      console.error('No se pudo leer los miembros de grupos:', error);
+    }
+
+    return { grupoPorParticipante, hospedajePorParticipante };
   };
+
+  const imprimirTodas = async () => {
+    if (filtrados.length === 0) return;
+    setImprimiendo(true);
+    try {
+      const { grupoPorParticipante, hospedajePorParticipante } = await cargarGruposYHospedaje(filtrados);
+
+      const subtitulo = eventoActivo?.ministerio === 'juvenil' ? 'Directiva Juvenil Nacional' : 'Iglesia de Dios';
+
+      const tarjetas = filtrados.map(p => {
+        const color = COLORES_IMPRESION[p.participantType] || COLORES_IMPRESION['Invitado'];
+        const grupo = grupoPorParticipante[p.id];
+        const hospedaje = hospedajePorParticipante[p.id];
+        const qr = renderToStaticMarkup(
+          <QRCodeSVG
+            value={JSON.stringify({ id: p.id, reg: p.registrationNumber, name: p.fullName, event: eventoActivo.id })}
+            size={90}
+          />
+        );
+        return `
+          <div class="cred">
+            <div class="cred-header">
+              <div class="cred-evento">${esc(eventoActivo.name)}</div>
+              <div class="cred-sub">${esc(subtitulo)}</div>
+              <div class="cred-tipo" style="background:${color.bg};color:${color.text};border:1px solid ${color.border}">${esc(p.participantType)}</div>
+            </div>
+            <div class="cred-body">
+              <div class="cred-qr">${qr}</div>
+              <div class="cred-nombre">${esc(p.fullName)}</div>
+              <div class="cred-reg">Registro #${esc(p.registrationNumber)}</div>
+              ${p.church ? `<div class="cred-info">${esc(p.church)}</div>` : ''}
+              ${p.district ? `<div class="cred-info cred-distrito">${esc(p.district)}</div>` : ''}
+              ${grupo ? `<div class="cred-dato cred-grupo">Grupo: ${esc(grupo)}</div>` : ''}
+              ${hospedaje ? `<div class="cred-dato cred-hosp">Hospedaje: ${esc(hospedaje)}</div>` : ''}
+            </div>
+            <div class="cred-footer">Credencial válida únicamente para este evento</div>
+          </div>
+        `;
+      });
+
+      // 9 credenciales por hoja (3 por fila, 3 filas)
+      const paginas = [];
+      for (let i = 0; i < tarjetas.length; i += 9) paginas.push(tarjetas.slice(i, i + 9));
+      const html = paginas.map(pg => `<div class="cred-pagina">${pg.join('')}</div>`).join('');
+
+      // Limpiar restos de una impresión anterior
+      document.getElementById('print-area')?.remove();
+      document.getElementById('print-area-style')?.remove();
+
+      const estilo = document.createElement('style');
+      estilo.id = 'print-area-style';
+      estilo.textContent = `
+        #print-area { display: none; }
+        @media print {
+          body > *:not(#print-area) { display: none !important; }
+          #print-area { display: block !important; background: white; }
+          @page { margin: 6mm 8mm; }
+          #print-area .cred-pagina { page-break-after: always; break-after: page; }
+          #print-area .cred-pagina:last-child { page-break-after: auto; break-after: auto; }
+        }
+        #print-area, #print-area * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+        #print-area { font-family: Arial, sans-serif; }
+        #print-area .cred-pagina { display: grid; grid-template-columns: repeat(3, 54mm); column-gap: 4mm; row-gap: 3mm; justify-content: center; }
+        #print-area .cred { width: 54mm; height: 85mm; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; background: white; page-break-inside: avoid; break-inside: avoid; }
+        #print-area .cred-header { background: #1e3a8a; color: white; padding: 6px 8px; text-align: center; }
+        #print-area .cred-evento { font-size: 8px; font-weight: bold; line-height: 1.2; }
+        #print-area .cred-sub { font-size: 6px; opacity: 0.85; margin-top: 2px; }
+        #print-area .cred-tipo { margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 7px; font-weight: bold; }
+        #print-area .cred-body { flex: 1; padding: 4px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #print-area .cred-qr { width: 90px; height: 90px; margin-bottom: 3px; }
+        #print-area .cred-qr svg { width: 90px; height: 90px; display: block; }
+        #print-area .cred-nombre { font-size: 9px; font-weight: bold; color: #1f2937; margin: 2px 0 1px; line-height: 1.2; }
+        #print-area .cred-reg { font-size: 7px; color: #6b7280; margin-bottom: 1px; }
+        #print-area .cred-info { font-size: 7px; color: #374151; line-height: 1.2; }
+        #print-area .cred-distrito { color: #6b7280; }
+        #print-area .cred-dato { font-size: 7.5px; font-weight: bold; margin-top: 2px; padding: 1px 6px; border-radius: 6px; }
+        #print-area .cred-grupo { background: #ede9fe; color: #6d28d9; }
+        #print-area .cred-hosp { background: #ffedd5; color: #c2410c; }
+        #print-area .cred-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 3px; text-align: center; font-size: 5px; color: #9ca3af; }
+      `;
+      document.head.appendChild(estilo);
+
+      const area = document.createElement('div');
+      area.id = 'print-area';
+      area.innerHTML = html;
+      document.body.appendChild(area);
+
+      const limpiar = () => {
+        area.remove();
+        estilo.remove();
+        window.removeEventListener('afterprint', limpiar);
+      };
+      window.addEventListener('afterprint', limpiar);
+      setTimeout(() => window.print(), 200);
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: error.message });
+    } finally {
+      setImprimiendo(false);
+    }
+  };
+
+  const hayFiltros = busqueda || filtroTipo || filtroDistrito;
 
   return (
     <div>
      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Credenciales</h1>
-          <p className="text-gray-500 text-sm mt-0.5">{eventoActivo.name} — {participantes.length} participantes</p>
+          <p className="text-gray-500 text-sm mt-0.5">
+            {eventoActivo.name} — {hayFiltros ? `${filtrados.length} de ${participantes.length}` : participantes.length} participantes
+          </p>
         </div>
-        {participantes.length > 0 && (
-          <button onClick={imprimirTodas}
-            className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition">
+        {filtrados.length > 0 && (
+          <button onClick={imprimirTodas} disabled={imprimiendo}
+            className="flex items-center gap-2 bg-primary-800 hover:bg-primary-900 text-white px-4 py-2.5 rounded-lg font-medium transition disabled:opacity-60">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
-            Imprimir todas
+            {imprimiendo ? 'Preparando...' : `Imprimir todas (${filtrados.length})`}
           </button>
         )}
       </div>
@@ -178,6 +286,18 @@ export default function Credenciales() {
           onChange={e => setBusqueda(e.target.value)}
           className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition text-sm"
         />
+        {isAdminNacional() && (
+          <select
+            value={filtroDistrito}
+            onChange={e => setFiltroDistrito(e.target.value)}
+            className="px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-500 outline-none transition text-sm bg-white"
+          >
+            <option value="">Todos los distritos</option>
+            {distritosDisponibles.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+        )}
         <select
           value={filtroTipo}
           onChange={e => setFiltroTipo(e.target.value)}
@@ -185,6 +305,7 @@ export default function Credenciales() {
         >
           <option value="">Todos los tipos</option>
           <option value="Niño">Niño</option>
+          <option value="Joven">Joven</option>
           <option value="Maestro">Maestro</option>
           <option value="Líder de Niños">Líder de Niños</option>
           <option value="Pastor">Pastor</option>
