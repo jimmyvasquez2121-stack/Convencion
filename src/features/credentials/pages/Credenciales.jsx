@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, getDocs, getDocsFromCache } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import { useEvent } from '../../../context/EventContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -34,6 +34,31 @@ const COLORES_IMPRESION = {
 };
 
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Espera una promesa, pero no más de "ms" milisegundos
+const conTimeout = (promesa, ms) => new Promise((resolve, reject) => {
+  const t = setTimeout(() => reject(new Error('timeout')), ms);
+  promesa.then(
+    v => { clearTimeout(t); resolve(v); },
+    e => { clearTimeout(t); reject(e); }
+  );
+});
+
+// Lee una consulta: primero internet (máx. 8 segundos), si falla usa lo guardado en el teléfono.
+// Devuelve { snap, ok }. ok = false significa que no se pudo leer de internet.
+const leerConsulta = async (consulta, ms = 8000) => {
+  try {
+    const snap = await conTimeout(getDocs(consulta), ms);
+    return { snap, ok: true };
+  } catch (error) {
+    try {
+      const snap = await getDocsFromCache(consulta);
+      return { snap, ok: false };
+    } catch {
+      return { snap: null, ok: false };
+    }
+  }
+};
 
 export default function Credenciales() {
   const [participantes, setParticipantes] = useState([]);
@@ -106,61 +131,60 @@ export default function Credenciales() {
     );
   }
 
-  // Busca el grupo y el hospedaje de cada participante
+  // Busca el grupo y el hospedaje de cada participante (todo en paralelo, con límite de tiempo)
   const cargarGruposYHospedaje = async (lista) => {
     const grupoPorParticipante = {};
     const hospedajePorParticipante = {};
+    let incompleto = false;
 
-    // Hospedaje
-    try {
-      const snapHosp = await getDocs(
-        query(collection(db, 'lodgingAssignments'), where('eventId', '==', eventoActivo.id))
-      );
-      snapHosp.docs.forEach(d => {
-        const a = d.data();
-        if (a.participantId && a.lodgingName) hospedajePorParticipante[a.participantId] = a.lodgingName;
+    const ids = lista.map(p => p.id);
+    const lotes = [];
+    for (let i = 0; i < ids.length; i += 30) lotes.push(ids.slice(i, i + 30));
+
+    const [resHosp, resGrupos, ...resMiembros] = await Promise.all([
+      leerConsulta(query(collection(db, 'lodgingAssignments'), where('eventId', '==', eventoActivo.id))),
+      leerConsulta(query(collection(db, 'groups'), where('eventId', '==', eventoActivo.id))),
+      ...lotes.map(lote => leerConsulta(query(collection(db, 'groupMembers'), where('participantId', 'in', lote)))),
+    ]);
+
+    if (!resHosp.ok || !resGrupos.ok || resMiembros.some(r => !r.ok)) incompleto = true;
+
+    resHosp.snap?.docs.forEach(d => {
+      const a = d.data();
+      if (a.participantId && a.lodgingName) hospedajePorParticipante[a.participantId] = a.lodgingName;
+    });
+
+    const nombresGrupos = {};
+    resGrupos.snap?.docs.forEach(d => { nombresGrupos[d.id] = d.data().name; });
+
+    resMiembros.forEach(r => {
+      r.snap?.docs.forEach(d => {
+        const m = d.data();
+        const nombre = m.groupName || m.grupoNombre || nombresGrupos[m.groupId];
+        if (m.participantId && nombre) grupoPorParticipante[m.participantId] = nombre;
       });
-    } catch (error) {
-      console.error('No se pudo leer el hospedaje:', error);
-    }
+    });
 
-    // Grupos
-    try {
-      const nombresGrupos = {};
-      try {
-        const snapGrupos = await getDocs(
-          query(collection(db, 'groups'), where('eventId', '==', eventoActivo.id))
-        );
-        snapGrupos.docs.forEach(d => { nombresGrupos[d.id] = d.data().name; });
-      } catch (error) {
-        console.error('No se pudieron leer los grupos:', error);
-      }
-
-      const ids = lista.map(p => p.id);
-      const lotes = [];
-      for (let i = 0; i < ids.length; i += 30) lotes.push(ids.slice(i, i + 30));
-      const respuestas = await Promise.all(
-        lotes.map(lote => getDocs(query(collection(db, 'groupMembers'), where('participantId', 'in', lote))))
-      );
-      respuestas.forEach(snap => {
-        snap.docs.forEach(d => {
-          const m = d.data();
-          const nombre = m.groupName || m.grupoNombre || nombresGrupos[m.groupId];
-          if (m.participantId && nombre) grupoPorParticipante[m.participantId] = nombre;
-        });
-      });
-    } catch (error) {
-      console.error('No se pudo leer los miembros de grupos:', error);
-    }
-
-    return { grupoPorParticipante, hospedajePorParticipante };
+    return { grupoPorParticipante, hospedajePorParticipante, incompleto };
   };
 
   const imprimirTodas = async () => {
     if (filtrados.length === 0) return;
     setImprimiendo(true);
     try {
-      const { grupoPorParticipante, hospedajePorParticipante } = await cargarGruposYHospedaje(filtrados);
+      const { grupoPorParticipante, hospedajePorParticipante, incompleto } = await cargarGruposYHospedaje(filtrados);
+
+      if (incompleto) {
+        const r = await Swal.fire({
+          icon: 'warning',
+          title: 'No se pudo cargar todo',
+          text: 'La conexión está lenta y no se pudo leer el grupo o el hospedaje de algunos participantes. Si imprimes ahora, esas credenciales podrían salir sin esos datos.',
+          showCancelButton: true,
+          confirmButtonText: 'Imprimir de todos modos',
+          cancelButtonText: 'Cancelar',
+        });
+        if (!r.isConfirmed) return;
+      }
 
       const subtitulo = eventoActivo?.ministerio === 'juvenil' ? 'Directiva Juvenil Nacional' : 'Iglesia de Dios';
 
@@ -171,7 +195,7 @@ export default function Credenciales() {
         const qr = renderToStaticMarkup(
           <QRCodeSVG
             value={JSON.stringify({ id: p.id, reg: p.registrationNumber, name: p.fullName, event: eventoActivo.id })}
-            size={90}
+            size={80}
           />
         );
         return `
@@ -195,10 +219,16 @@ export default function Credenciales() {
         `;
       });
 
-      // 9 credenciales por hoja (3 por fila, 3 filas)
+      // 9 credenciales por hoja: 3 filas de 3. Cada fila es un bloque que no se parte.
       const paginas = [];
       for (let i = 0; i < tarjetas.length; i += 9) paginas.push(tarjetas.slice(i, i + 9));
-      const html = paginas.map(pg => `<div class="cred-pagina">${pg.join('')}</div>`).join('');
+      const html = paginas.map(pg => {
+        const filas = [];
+        for (let i = 0; i < pg.length; i += 3) {
+          filas.push(`<div class="cred-fila">${pg.slice(i, i + 3).join('')}</div>`);
+        }
+        return `<div class="cred-pagina">${filas.join('')}</div>`;
+      }).join('');
 
       // Limpiar restos de una impresión anterior
       document.getElementById('print-area')?.remove();
@@ -217,23 +247,25 @@ export default function Credenciales() {
         }
         #print-area, #print-area * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
         #print-area { font-family: Arial, sans-serif; }
-        #print-area .cred-pagina { display: grid; grid-template-columns: repeat(3, 54mm); column-gap: 4mm; row-gap: 3mm; justify-content: center; }
-        #print-area .cred { width: 54mm; height: 85mm; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; background: white; page-break-inside: avoid; break-inside: avoid; }
-        #print-area .cred-header { background: #1e3a8a; color: white; padding: 6px 8px; text-align: center; }
+        #print-area .cred-pagina { display: block; width: 170mm; margin: 0 auto; }
+        #print-area .cred-fila { display: flex; gap: 4mm; margin-bottom: 2mm; page-break-inside: avoid; break-inside: avoid; }
+        #print-area .cred-fila:last-child { margin-bottom: 0; }
+        #print-area .cred { flex: none; width: 54mm; height: 74mm; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; background: white; }
+        #print-area .cred-header { background: #1e3a8a; color: white; padding: 4px 6px; text-align: center; }
         #print-area .cred-evento { font-size: 8px; font-weight: bold; line-height: 1.2; }
-        #print-area .cred-sub { font-size: 6px; opacity: 0.85; margin-top: 2px; }
-        #print-area .cred-tipo { margin-top: 4px; display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 7px; font-weight: bold; }
-        #print-area .cred-body { flex: 1; padding: 4px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #print-area .cred-qr { width: 90px; height: 90px; margin-bottom: 3px; }
-        #print-area .cred-qr svg { width: 90px; height: 90px; display: block; }
-        #print-area .cred-nombre { font-size: 9px; font-weight: bold; color: #1f2937; margin: 2px 0 1px; line-height: 1.2; }
-        #print-area .cred-reg { font-size: 7px; color: #6b7280; margin-bottom: 1px; }
+        #print-area .cred-sub { font-size: 6px; opacity: 0.85; margin-top: 1px; }
+        #print-area .cred-tipo { margin-top: 3px; display: inline-block; padding: 1px 8px; border-radius: 8px; font-size: 7px; font-weight: bold; }
+        #print-area .cred-body { flex: 1; padding: 3px 5px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #print-area .cred-qr { width: 80px; height: 80px; margin-bottom: 2px; }
+        #print-area .cred-qr svg { width: 80px; height: 80px; display: block; }
+        #print-area .cred-nombre { font-size: 9px; font-weight: bold; color: #1f2937; margin: 1px 0; line-height: 1.15; }
+        #print-area .cred-reg { font-size: 7px; color: #6b7280; }
         #print-area .cred-info { font-size: 7px; color: #374151; line-height: 1.2; }
         #print-area .cred-distrito { color: #6b7280; }
         #print-area .cred-dato { font-size: 7.5px; font-weight: bold; margin-top: 2px; padding: 1px 6px; border-radius: 6px; }
         #print-area .cred-grupo { background: #ede9fe; color: #6d28d9; }
         #print-area .cred-hosp { background: #ffedd5; color: #c2410c; }
-        #print-area .cred-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 3px; text-align: center; font-size: 5px; color: #9ca3af; }
+        #print-area .cred-footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 2px; text-align: center; font-size: 5px; color: #9ca3af; }
       `;
       document.head.appendChild(estilo);
 
